@@ -1515,5 +1515,14 @@ document.addEventListener('DOMContentLoaded', () => {
   setupModalCloser('close-edit-plan-modal', 'cancel-edit-plan-modal', 'edit-plan-modal');
   setupModalCloser('close-product-modal', 'cancel-product-modal', 'product-modal');
 
+  window.addEventListener('gym-master-cloud-synced', () => {
+    console.log('🔄 [Firebase] ข้อมูลซิงก์เรียบร้อย กำลังรีเฟรชหน้าจอ...');
+    const activeLink = document.querySelector('.sidebar .nav-link.active');
+    if (activeLink) {
+      const activeView = activeLink.dataset.view;
+      loadViewData(activeView);
+    }
+  });
+
   navigateToView('checkin');
 });

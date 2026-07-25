@@ -1,4 +1,74 @@
 // Gym Master - Data Store & LocalStorage Controller
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { firebaseConfig } from './firebase-config.js';
+
+// เริ่มต้นเชื่อมต่อ Firebase Firestore (ตรวจเช็ก Config)
+let db = null;
+let isFirebaseConnected = false;
+
+if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.apiKey !== "") {
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    isFirebaseConnected = true;
+    console.log('🔥 [Firebase] เชื่อมต่อระบบคลาวด์สำเร็จแล้ว');
+  } catch (err) {
+    console.error('❌ [Firebase] เกิดข้อผิดพลาดในการเชื่อมต่อเริ่มต้น:', err);
+  }
+} else {
+  console.warn('⚠️ [Firebase] ยังไม่ได้ระบุ Firebase Config ใน firebase-config.js กำลังรันโหมดออฟไลน์ (LocalStorage) เท่านั้น');
+}
+
+// ฟังก์ชันส่งกระจายข้อมูลจาก LocalStorage ขึ้น Cloud Firestore
+async function syncToCloud(collectionName, data) {
+  if (!isFirebaseConnected || !db) return;
+  try {
+    const docRef = doc(db, 'gym_data', collectionName);
+    await setDoc(docRef, { data: data, updatedAt: new Date().toISOString() });
+    console.log(`☁️ [Firebase] ซิงก์สำเร็จ: คอลเลกชัน ${collectionName}`);
+  } catch (err) {
+    console.error(`❌ [Firebase] ซิงก์ล้มเหลว: คอลเลกชัน ${collectionName}:`, err);
+  }
+}
+
+// ฟังก์ชันดึงข้อมูลจาก Cloud Firestore ลงมาเขียนทับ LocalStorage
+export async function syncFromCloud() {
+  if (!isFirebaseConnected || !db) return;
+  console.log('🔄 [Firebase] กำลังดึงข้อมูลจาก Cloud Firestore...');
+  const collections = [
+    { name: 'plans', storageKey: 'gm_plans' },
+    { name: 'products', storageKey: 'gm_products' },
+    { name: 'members', storageKey: 'gm_members' },
+    { name: 'transactions', storageKey: 'gm_transactions' },
+    { name: 'shop_sales', storageKey: 'gm_shop_sales' },
+    { name: 'checkins', storageKey: 'gm_checkins' },
+    { name: 'daily_archives', storageKey: 'gm_daily_archives' }
+  ];
+
+  for (const col of collections) {
+    try {
+      const docRef = doc(db, 'gym_data', col.name);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const cloudData = docSnap.data().data;
+        if (cloudData && Array.isArray(cloudData)) {
+          localStorage.setItem(col.storageKey, JSON.stringify(cloudData));
+          console.log(`📥 [Firebase] ซิงก์ลงสำเร็จ: ${col.name} (${cloudData.length} รายการ)`);
+        }
+      } else {
+        // ถ้าบนคลาวด์ยังไม่มีข้อมูล ให้อัปโหลดข้อมูลปัจจุบันใน LocalStorage ขึ้นไปแทน
+        const localVal = localStorage.getItem(col.storageKey);
+        if (localVal) {
+          await setDoc(docRef, { data: JSON.parse(localVal), updatedAt: new Date().toISOString() });
+          console.log(`📤 [Firebase] อัปโหลดข้อมูลเริ่มต้นไปคลาวด์: ${col.name}`);
+        }
+      }
+    } catch (err) {
+      console.error(`❌ [Firebase] ซิงก์ลงล้มเหลวสำหรับ ${col.name}:`, err);
+    }
+  }
+}
 
 // รายการแพ็กเกจตั้งต้น
 const INITIAL_PLANS = [
@@ -193,6 +263,14 @@ export function initializeData() {
   if (!localStorage.getItem('gm_daily_archives')) {
     localStorage.setItem('gm_daily_archives', JSON.stringify(INITIAL_DAILY_ARCHIVES));
   }
+
+  // ถ้าต่อ Firebase สำเร็จ ให้ดึงข้อมูลมาเขียนทับ LocalStorage ในเบื้องหลัง (รันครั้งเดียวต่อเซสชัน)
+  if (isFirebaseConnected && !window._isFirebaseSyncingStarted) {
+    window._isFirebaseSyncingStarted = true;
+    syncFromCloud().then(() => {
+      window.dispatchEvent(new CustomEvent('gym-master-cloud-synced'));
+    });
+  }
 }
 
 // ฟังก์ชัน CRUD สำหรับ Plans
@@ -203,6 +281,7 @@ export function getPlans() {
 
 export function savePlans(plans) {
   localStorage.setItem('gm_plans', JSON.stringify(plans));
+  syncToCloud('plans', plans);
 }
 
 export function updatePlanPrice(planId, newPrice) {
@@ -223,6 +302,11 @@ export function getProducts() {
 }
 
 // ฟังก์ชัน CRUD สำหรับจัดการเครื่องดื่ม (Beverage Manager CRUD)
+export function saveProducts(products) {
+  localStorage.setItem('gm_products', JSON.stringify(products));
+  syncToCloud('products', products);
+}
+
 export function addProduct(name, price, icon) {
   const products = getProducts();
   const newId = 'prod-' + Date.now();
@@ -233,7 +317,7 @@ export function addProduct(name, price, icon) {
     icon: icon || 'droplet'
   };
   products.push(newProduct);
-  localStorage.setItem('gm_products', JSON.stringify(products));
+  saveProducts(products);
   return newProduct;
 }
 
@@ -247,7 +331,7 @@ export function updateProduct(id, name, price, icon) {
       price: Number(price),
       icon: icon || 'droplet'
     };
-    localStorage.setItem('gm_products', JSON.stringify(products));
+    saveProducts(products);
     return true;
   }
   return false;
@@ -257,7 +341,7 @@ export function deleteProduct(id) {
   const products = getProducts();
   const filtered = products.filter(p => p.id !== id);
   if (products.length !== filtered.length) {
-    localStorage.setItem('gm_products', JSON.stringify(filtered));
+    saveProducts(filtered);
     return true;
   }
   return false;
@@ -283,6 +367,7 @@ export function getMembers() {
 
 export function saveMembers(members) {
   localStorage.setItem('gm_members', JSON.stringify(members));
+  syncToCloud('members', members);
 }
 
 // รันรหัสสมาชิกใหม่ (อัตโนมัติเช่น GM-006, GM-007)
@@ -369,6 +454,7 @@ export function getTransactions() {
 
 export function saveTransactions(txs) {
   localStorage.setItem('gm_transactions', JSON.stringify(txs));
+  syncToCloud('transactions', txs);
 }
 
 export function addTransaction(memberId, planId, amount, paymentMethod) {
@@ -412,6 +498,7 @@ export function getShopSales() {
 
 export function saveShopSales(sales) {
   localStorage.setItem('gm_shop_sales', JSON.stringify(sales));
+  syncToCloud('shop_sales', sales);
 }
 
 export function addShopSale(items, total, paymentMethod) {
@@ -446,6 +533,7 @@ export function getCheckins() {
 
 export function saveCheckins(checkins) {
   localStorage.setItem('gm_checkins', JSON.stringify(checkins));
+  syncToCloud('checkins', checkins);
 }
 
 // ทำการเช็กอินสมาชิก
@@ -581,6 +669,11 @@ export function getArchivedSummaries() {
   return JSON.parse(localStorage.getItem('gm_daily_archives'));
 }
 
+export function saveDailyArchives(archives) {
+  localStorage.setItem('gm_daily_archives', JSON.stringify(archives));
+  syncToCloud('daily_archives', archives);
+}
+
 export function archiveDailySummary(dateStr) {
   const archives = getArchivedSummaries();
   
@@ -598,6 +691,6 @@ export function archiveDailySummary(dateStr) {
     archives.push(closedData);
   }
 
-  localStorage.setItem('gm_daily_archives', JSON.stringify(archives));
+  saveDailyArchives(archives);
   return closedData;
 }
