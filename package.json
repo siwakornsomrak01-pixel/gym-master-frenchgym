@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "vite build && cd dist && git init && git checkout -B gh-pages && git add . && git commit -m \"deploy: update github pages\" && git remote add origin https://github.com/siwakornsomrak01-pixel/gym-master-frenchgym.git && git push -f origin gh-pages"
   },
   "devDependencies": {
     "gh-pages": "^6.3.0",
