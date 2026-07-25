@@ -1,0 +1,7 @@
+node_modules
+dist
+.gemini
+.system_generated
+.firebaserc
+firebase.json
+*.log

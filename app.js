@@ -1,0 +1,1519 @@
+// Gym Master - Core Application Controller
+import * as DB from './data.js';
+
+// เก็บ Instance ของ Chart.js เพื่อรีเซ็ตเวลาอัปเดตข้อมูล
+let revenueChartInstance = null;
+
+// บทบาทผู้ใช้ปัจจุบัน: 'owner' (เจ้าของยิม) หรือ 'staff' (พนักงานเคาน์เตอร์)
+let currentRole = 'owner';
+
+// ตัวกรองการชำระเงินสำหรับแดชบอร์ดหลัก: 'all', 'โอนผ่านธนาคาร', 'เงินสด', 'บัตรเครดิต'
+let currentChartFilter = 'all';
+
+// ตะกร้าสินค้าสำหรับ Beverage POS
+let shopCart = [];
+
+// เก็บสถานะฟิลเตอร์การค้นหาสมาชิก
+const memberFilterState = {
+  searchQuery: '',
+  statusFilter: 'all' // all, active, warning, expired
+};
+
+// สังเคราะห์เสียงประกอบด้วย Web Audio API เพื่อแจ้งเตือนการเช็กอินด่วน
+function playCheckinSound(status) {
+  if (!document.getElementById('sound-checkbox').checked) return;
+
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const audioCtx = new AudioContext();
+
+    if (status === 'active') {
+      // เสียง ติ๊ง-ต่อง สูงๆ แสดงความสำเร็จ (Active)
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+      osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.12); // E5
+      
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.45);
+    } else if (status === 'warning') {
+      // เสียง ติ๊ง-ติ๊ง แบบระวัง (Warning)
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.frequency.setValueAtTime(392.00, audioCtx.currentTime); // G4
+      osc.frequency.setValueAtTime(392.00, audioCtx.currentTime + 0.15);
+      
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.45);
+    } else {
+      // เสียง ตื๊ด ต่ำ แสดงการปฏิเสธ/หมดอายุ (Expired / Error)
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.frequency.setValueAtTime(130.81, audioCtx.currentTime); // C3
+      
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.55);
+    }
+  } catch (err) {
+    console.warn('ไม่สามารถเล่นเสียงแจ้งเตือนได้เนื่องจากเบราว์เซอร์บล็อก:', err);
+  }
+}
+
+// โหลดและเรนเดอร์ไอคอน Lucide ทั่วหน้าเว็บ
+function refreshIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+}
+
+// ----------------- CONTROL ROLE-BASED SYSTEM -----------------
+function updateRoleViews() {
+  const roleSelect = document.getElementById('role-toggle-select');
+  currentRole = roleSelect.value;
+
+  const navDashboard = document.getElementById('nav-item-dashboard');
+  const navBilling = document.getElementById('nav-item-billing');
+  const navTraffic = document.getElementById('nav-item-traffic');
+  
+  // แผงควบคุมสมุดบัญชีปิดยอดของเจ้าของยิม
+  const dailyReportSection = document.getElementById('owner-daily-report-section');
+
+  const wrapper = document.querySelector('.role-selector-wrapper');
+  
+  if (currentRole === 'staff') {
+    wrapper.style.borderColor = 'var(--accent-orange)';
+    wrapper.querySelector('i').style.color = 'var(--accent-orange)';
+    
+    navDashboard.style.display = 'none';
+    navBilling.style.display = 'none';
+    navTraffic.style.display = 'block';
+    
+    if (dailyReportSection) dailyReportSection.style.display = 'none';
+
+    const activeLink = document.querySelector('.sidebar .nav-link.active');
+    if (activeLink) {
+      const activeView = activeLink.dataset.view;
+      if (activeView === 'dashboard' || activeView === 'billing') {
+        navigateToView('checkin');
+      }
+    }
+  } else {
+    wrapper.style.borderColor = 'var(--accent-gold)';
+    wrapper.querySelector('i').style.color = 'var(--accent-gold)';
+
+    navDashboard.style.display = 'block';
+    navBilling.style.display = 'block';
+    navTraffic.style.display = 'block';
+    
+    if (dailyReportSection) dailyReportSection.style.display = 'block';
+  }
+}
+
+function navigateToView(viewId) {
+  const links = document.querySelectorAll('.sidebar .nav-link');
+  const targetLink = Array.from(links).find(l => l.dataset.view === viewId);
+  
+  if (targetLink) {
+    links.forEach(l => l.classList.remove('active'));
+    targetLink.classList.add('active');
+
+    document.querySelectorAll('.views-container .view-panel').forEach(panel => {
+      panel.classList.remove('active');
+    });
+    
+    const panel = document.getElementById(`${viewId}-view`);
+    if (panel) {
+      panel.classList.add('active');
+    }
+
+    const titleText = targetLink.querySelector('span').textContent;
+    document.getElementById('current-view-title').textContent = titleText;
+
+    loadViewData(viewId);
+  }
+}
+
+function loadViewData(viewId) {
+  if (viewId === 'dashboard') {
+    renderDashboard();
+  } else if (viewId === 'members') {
+    renderMembersList();
+  } else if (viewId === 'checkin') {
+    renderCheckinLogToday();
+    resetCheckinPanel();
+  } else if (viewId === 'traffic') {
+    renderTrafficView();
+  } else if (viewId === 'shop') {
+    renderShopView();
+  } else if (viewId === 'billing') {
+    renderBillingAndPlans();
+  }
+}
+
+// ----------------- 1. DASHBOARD VIEW CONTROLLER -----------------
+function renderDashboard() {
+  const members = DB.getMembers();
+  const rawTxs = DB.getTransactions();
+  const rawShopSales = DB.getShopSales();
+  const checkins = DB.getCheckins();
+
+  let txs = [...rawTxs];
+  let shopSales = [...rawShopSales];
+
+  if (currentChartFilter !== 'all') {
+    txs = txs.filter(t => t.paymentMethod === currentChartFilter);
+    shopSales = shopSales.filter(s => s.paymentMethod === currentChartFilter);
+  }
+
+  const totalCount = members.length;
+  const activeCount = members.filter(m => m.status === 'active').length;
+  const expiredCount = members.filter(m => m.status === 'expired').length;
+  
+  const membershipRev = txs.reduce((sum, tx) => sum + tx.amount, 0);
+  const shopRev = shopSales.reduce((sum, sale) => sum + sale.total, 0);
+  const totalRevenue = membershipRev + shopRev;
+
+  document.getElementById('kpi-total-members').textContent = totalCount;
+  document.getElementById('kpi-active-members').textContent = activeCount;
+  document.getElementById('kpi-expired-members').textContent = expiredCount;
+  document.getElementById('kpi-total-revenue').textContent = `฿${totalRevenue.toLocaleString('th-TH')}`;
+
+  const checkinsList = document.getElementById('dashboard-checkins-list');
+  checkinsList.innerHTML = '';
+  
+  const todayDateStr = DB.formatDateString(DB.getGymTodayDate());
+  const todayCheckins = checkins.filter(c => c.timestamp.startsWith(todayDateStr)).slice(0, 5);
+
+  if (todayCheckins.length === 0) {
+    checkinsList.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;">
+        ยังไม่มีการเช็กชื่อเข้าใช้งานในวันนี้
+      </div>
+    `;
+  } else {
+    todayCheckins.forEach(c => {
+      const initials = c.memberName.substring(0, 2);
+      const member = members.find(m => m.id === c.memberId);
+      const gradient = member ? member.avatarGradient : 'linear-gradient(135deg, #A0A0A0, #626272)';
+      
+      let badgeThai = 'ปกติ';
+      if (c.status === 'expired') badgeThai = 'หมดอายุ';
+      if (c.status === 'warning') badgeThai = 'ใกล้หมด';
+
+      const timeOnly = c.timestamp.split(' ')[1];
+
+      const row = document.createElement('div');
+      row.className = 'checkin-row';
+      row.innerHTML = `
+        <div class="checkin-user-info">
+          <div class="checkin-avatar" style="background: ${gradient}">${initials}</div>
+          <div class="checkin-detail">
+            <span class="checkin-name">${c.memberName}</span>
+            <span class="checkin-plan">${c.planName}</span>
+          </div>
+        </div>
+        <div class="checkin-meta">
+          <span class="checkin-time font-eng">${timeOnly} น.</span>
+          <div><span class="badge ${c.status}">${badgeThai}</span></div>
+        </div>
+      `;
+      checkinsList.appendChild(row);
+    });
+  }
+
+  renderRevenueChart(membershipRev, shopRev);
+  refreshIcons();
+}
+
+function renderRevenueChart(membershipRev, shopRev) {
+  const ctx = document.getElementById('revenue-chart').getContext('2d');
+  
+  if (revenueChartInstance) {
+    revenueChartInstance.destroy();
+  }
+
+  revenueChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['ค่าสมัครสมาชิก (Membership)', 'ยอดขายเครื่องดื่ม (Beverage Sales)'],
+      datasets: [{
+        data: [membershipRev, shopRev],
+        backgroundColor: [
+          'rgba(255, 95, 31, 0.7)',
+          'rgba(255, 215, 0, 0.7)'
+        ],
+        borderColor: [
+          '#ff5f1f',
+          '#ffd700'
+        ],
+        borderWidth: 1.5,
+        borderRadius: 8,
+        barPercentage: 0.5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          titleFont: { family: 'Prompt', size: 13 },
+          bodyFont: { family: 'Prompt', size: 12 },
+          callbacks: {
+            label: function(context) {
+              return ` ยอดรวม: ฿${context.parsed.y.toLocaleString('th-TH')}`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          ticks: {
+            color: '#a0a0b0',
+            font: { family: 'Prompt', size: 11 },
+            callback: function(value) { return '฿' + value.toLocaleString(); }
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: '#a0a0b0', font: { family: 'Prompt', size: 12 } }
+        }
+      }
+    }
+  });
+}
+
+// ----------------- 2. MEMBERS VIEW CONTROLLER -----------------
+function renderMembersList() {
+  const members = DB.getMembers();
+  const plans = DB.getPlans();
+  const tableBody = document.getElementById('members-table-body');
+  tableBody.innerHTML = '';
+
+  const query = memberFilterState.searchQuery.toLowerCase().trim();
+  const statusFilter = memberFilterState.statusFilter;
+
+  const filteredMembers = members.filter(m => {
+    if (m.id.startsWith('GM-W-')) return false;
+
+    const matchQuery = 
+      m.id.toLowerCase().includes(query) ||
+      m.fullname.toLowerCase().includes(query) ||
+      m.phone.includes(query);
+
+    let matchStatus = true;
+    if (statusFilter !== 'all') {
+      matchStatus = (m.status === statusFilter);
+    }
+
+    return matchQuery && matchStatus;
+  });
+
+  if (filteredMembers.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">
+          ไม่พบรายชื่อสมาชิกตามเงื่อนไขที่ระบุ
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filteredMembers.forEach(m => {
+    const initials = m.fullname.substring(0, 2);
+    const plan = plans.find(p => p.id === m.planId);
+    const planName = plan ? plan.name : 'ไม่ระบุ';
+    
+    let statusText = 'ปกติ';
+    if (m.status === 'expired') statusText = 'หมดอายุ';
+    if (m.status === 'warning') statusText = 'ใกล้หมด';
+
+    const expDate = new Date(m.expiryDate);
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    const dateFormatted = expDate.toLocaleDateString('th-TH', options);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-eng" style="font-weight: 600;">${m.id}</td>
+      <td>
+        <div class="table-user-info">
+          <div class="member-avatar" style="background: ${m.avatarGradient}">${initials}</div>
+          <div>
+            <div class="member-fullname">${m.fullname}</div>
+            <div class="member-subtext">เพศ: ${m.gender} | สมัครเมื่อ: ${m.joinDate}</div>
+          </div>
+        </div>
+      </td>
+      <td class="font-eng">${m.phone}</td>
+      <td>${planName}</td>
+      <td>
+        <div class="font-eng">${m.expiryDate}</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${dateFormatted}</div>
+      </td>
+      <td><span class="badge ${m.status}">${statusText}</span></td>
+      <td>
+        <div class="action-buttons">
+          <button class="action-btn view" data-id="${m.id}" title="ดูรายละเอียด"><i data-lucide="eye"></i></button>
+          <button class="action-btn edit" data-id="${m.id}" title="แก้ไขข้อมูล"><i data-lucide="edit-3"></i></button>
+          <button class="action-btn delete" data-id="${m.id}" title="ลบสมาชิก"><i data-lucide="trash-2"></i></button>
+        </div>
+      </td>
+    `;
+    tableBody.appendChild(tr);
+  });
+
+  tableBody.querySelectorAll('.action-btn.view').forEach(btn => {
+    btn.addEventListener('click', () => openDetailModal(btn.dataset.id));
+  });
+  tableBody.querySelectorAll('.action-btn.edit').forEach(btn => {
+    btn.addEventListener('click', () => openMemberFormModal(btn.dataset.id));
+  });
+  tableBody.querySelectorAll('.action-btn.delete').forEach(btn => {
+    btn.addEventListener('click', () => handleDeleteMember(btn.dataset.id));
+  });
+
+  refreshIcons();
+}
+
+function handleDeleteMember(id) {
+  const members = DB.getMembers();
+  const member = members.find(m => m.id === id);
+  if (!member) return;
+
+  if (confirm(`คุณต้องการลบข้อมูลของ "${member.fullname}" หรือไม่? ข้อมูลทั้งหมดจะสูญหาย`)) {
+    DB.deleteMember(id);
+    renderMembersList();
+  }
+}
+
+function openMemberFormModal(id = null) {
+  const modal = document.getElementById('member-modal');
+  const title = document.getElementById('member-modal-title');
+  const form = document.getElementById('member-form');
+  
+  const plans = DB.getPlans();
+  const planSelect = document.getElementById('form-plan');
+  planSelect.innerHTML = plans.map(p => `<option value="${p.id}">${p.name} (฿${p.price.toLocaleString()})</option>`).join('');
+
+  form.reset();
+  
+  document.getElementById('form-special-checkbox').checked = false;
+  document.getElementById('form-special-input-wrapper').classList.remove('active');
+  document.getElementById('form-special-price').required = false;
+
+  if (id) {
+    title.textContent = 'แก้ไขข้อมูลสมาชิก';
+    const members = DB.getMembers();
+    const m = members.find(item => item.id === id);
+    if (m) {
+      document.getElementById('form-member-id').value = m.id;
+      document.getElementById('form-fullname').value = m.fullname;
+      document.getElementById('form-phone').value = m.phone;
+      document.getElementById('form-email').value = m.email === '-' ? '' : m.email;
+      document.getElementById('form-gender').value = m.gender;
+      document.getElementById('form-plan').value = m.planId;
+      document.getElementById('form-joindate').value = m.joinDate;
+      document.getElementById('form-expirydate').value = m.expiryDate;
+    }
+  } else {
+    title.textContent = 'ลงทะเบียนสมาชิกใหม่';
+    document.getElementById('form-member-id').value = '';
+    const todayStr = DB.formatDateString(DB.getGymTodayDate());
+    document.getElementById('form-joindate').value = todayStr;
+    updateFormExpiryDate();
+  }
+
+  modal.classList.add('active');
+}
+
+function updateFormExpiryDate() {
+  const joinDateVal = document.getElementById('form-joindate').value;
+  const planId = document.getElementById('form-plan').value;
+  if (!joinDateVal || !planId) return;
+
+  const plans = DB.getPlans();
+  const plan = plans.find(p => p.id === planId);
+  if (!plan) return;
+
+  const joinDate = new Date(joinDateVal);
+  const expiryDate = new Date(joinDate);
+  expiryDate.setDate(joinDate.getDate() + plan.durationDays);
+
+  document.getElementById('form-expirydate').value = DB.formatDateString(expiryDate);
+  document.getElementById('form-special-price').value = plan.price;
+}
+
+function handleMemberFormSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('form-member-id').value;
+  
+  const memberData = {
+    fullname: document.getElementById('form-fullname').value,
+    phone: document.getElementById('form-phone').value,
+    email: document.getElementById('form-email').value,
+    gender: document.getElementById('form-gender').value,
+    planId: document.getElementById('form-plan').value,
+    joinDate: document.getElementById('form-joindate').value,
+    expiryDate: document.getElementById('form-expirydate').value
+  };
+
+  const plans = DB.getPlans();
+  const selectedPlan = plans.find(p => p.id === memberData.planId);
+
+  const isSpecial = document.getElementById('form-special-checkbox').checked;
+  let paymentAmount = selectedPlan ? selectedPlan.price : 0;
+  
+  if (isSpecial) {
+    paymentAmount = Number(document.getElementById('form-special-price').value);
+  }
+
+  if (id) {
+    const success = DB.updateMember({ id, ...memberData });
+    if (success) {
+      alert('แก้ไขข้อมูลสมาชิกเรียบร้อยแล้ว');
+    }
+  } else {
+    const newMember = DB.addMember(memberData);
+    if (selectedPlan && newMember) {
+      const planNameNote = isSpecial ? `${selectedPlan.name} (เรตพิเศษ)` : selectedPlan.name;
+      const transactions = DB.getTransactions();
+      
+      const now = DB.getGymTodayDate();
+      const dateStr = now.getFullYear() + '-' + 
+                      String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                      String(now.getDate()).padStart(2, '0') + ' ' + 
+                      String(now.getHours()).padStart(2, '0') + ':' + 
+                      String(now.getMinutes()).padStart(2, '0');
+
+      const txId = 'TX-' + (1000 + transactions.length + 1);
+      
+      const newTx = {
+        id: txId,
+        memberId: newMember.id,
+        memberName: newMember.fullname,
+        planId: selectedPlan.id,
+        planName: planNameNote,
+        amount: paymentAmount,
+        paymentMethod: 'เงินสด',
+        date: dateStr
+      };
+      
+      transactions.unshift(newTx);
+      DB.saveTransactions(transactions);
+    }
+    alert(`ลงทะเบียนสำเร็จ! รหัสสมาชิกคือ: ${newMember.id} ยอดเงินชำระ: ฿${paymentAmount}`);
+  }
+
+  document.getElementById('member-modal').classList.remove('active');
+  renderMembersList();
+}
+
+// ----------------- 3. QUICK CHECK-IN VIEW CONTROLLER -----------------
+function renderCheckinLogToday() {
+  const checkins = DB.getCheckins();
+  const logList = document.getElementById('today-checkin-log-list');
+  logList.innerHTML = '';
+
+  const todayDateStr = DB.formatDateString(DB.getGymTodayDate());
+  const todayLogs = checkins.filter(c => c.timestamp.startsWith(todayDateStr));
+
+  if (todayLogs.length === 0) {
+    logList.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 13px;">
+        ยังไม่มีประวัติการเช็กชื่อในวันนี้
+      </div>
+    `;
+    return;
+  }
+
+  todayLogs.forEach(log => {
+    const time = log.timestamp.split(' ')[1];
+    let badgeText = 'ปกติ';
+    if (log.status === 'expired') badgeText = 'หมดอายุ';
+    if (log.status === 'warning') badgeText = 'ใกล้หมด';
+
+    const div = document.createElement('div');
+    div.className = 'checkin-row';
+    div.style.padding = '8px 12px';
+    div.innerHTML = `
+      <div>
+        <div style="font-size: 13px; font-weight: 500;">${log.memberName} (${log.memberId})</div>
+        <div style="font-size: 10px; color: var(--text-muted);">${log.planName}</div>
+      </div>
+      <div class="text-right">
+        <div style="font-size: 11px;" class="font-eng">${time}</div>
+        <span class="badge ${log.status}" style="font-size: 9px; padding: 2px 4px;">${badgeText}</span>
+      </div>
+    `;
+    logList.appendChild(div);
+  });
+}
+
+function resetCheckinPanel() {
+  const panel = document.getElementById('checkin-result-panel');
+  if (panel) {
+    panel.className = 'checkin-status-panel empty';
+    panel.innerHTML = `
+      <div class="status-display">
+        <div class="status-icon"><i data-lucide="info"></i></div>
+        <div class="status-message">กรุณาระบุรหัสสมาชิกเพื่อตรวจสอบ</div>
+        <p style="color: var(--text-secondary); font-size: 14px;">พิมพ์รหัสและกดปุ่มยืนยันเช็กอินด้านซ้ายเพื่อดูสิทธิ์</p>
+      </div>
+    `;
+    refreshIcons();
+  }
+}
+
+function handleQuickCheckin(e) {
+  e.preventDefault();
+  const inputField = document.getElementById('checkin-member-id');
+  const code = inputField.value.trim();
+  if (!code) return;
+
+  const result = DB.checkInMember(code);
+  const panel = document.getElementById('checkin-result-panel');
+  panel.className = 'checkin-status-panel';
+
+  if (!result.success) {
+    panel.classList.add('expired');
+    panel.innerHTML = `
+      <div class="status-display">
+        <div class="status-icon"><i data-lucide="x-circle"></i></div>
+        <div class="status-message">ไม่พบสมาชิก</div>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">ไม่พบบัญชีสมาชิกหรือหมายเลขโทรศัพท์ "${code}" ในยิมนี้</p>
+        <button class="secondary-btn" id="checkin-retry-btn" style="width: auto; padding: 8px 20px;">ลองใหม่อีกครั้ง</button>
+      </div>
+    `;
+    playCheckinSound('expired');
+  } else {
+    const m = result.member;
+    const initials = m.fullname.substring(0, 2);
+    
+    const today = DB.getGymTodayDate();
+    today.setHours(0,0,0,0);
+    const expiry = new Date(m.expiryDate);
+    expiry.setHours(0,0,0,0);
+    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+
+    let statusHeader = 'อนุญาตให้เข้ายิมได้';
+    let statusDesc = `สมาชิกสถานะปกติ (เหลืออายุการใช้งานอีก ${diffDays} วัน)`;
+    
+    if (result.status === 'expired') {
+      statusHeader = 'ระงับสิทธิ์เข้าใช้งาน!';
+      statusDesc = 'แพ็กเกจสมาชิกของคุณหมดอายุแล้ว กรุณาติดต่อต่ออายุที่เคาน์เตอร์';
+      panel.classList.add('expired');
+    } else if (result.status === 'warning') {
+      statusHeader = 'ผ่าน (สิทธิ์ใกล้หมดอายุ)';
+      statusDesc = `สมาชิกจะหมดอายุในอีก ${diffDays} วันโปรดชำระค่าบริการล่วงหน้า`;
+      panel.classList.add('warning');
+    } else {
+      panel.classList.add('active');
+    }
+
+    let statusText = 'ปกติ';
+    if (result.status === 'expired') statusText = 'หมดอายุ';
+    if (result.status === 'warning') statusText = 'ใกล้หมด';
+
+    panel.innerHTML = `
+      <div class="status-display" style="width: 100%;">
+        <div class="status-icon">
+          ${result.status === 'active' ? '<i data-lucide="check-circle-2"></i>' : ''}
+          ${result.status === 'warning' ? '<i data-lucide="alert-triangle"></i>' : ''}
+          ${result.status === 'expired' ? '<i data-lucide="shield-alert"></i>' : ''}
+        </div>
+        <div class="status-message">${statusHeader}</div>
+        <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 14px;">${statusDesc}</p>
+        
+        <div class="status-member-card">
+          <div class="status-member-avatar" style="background: ${m.avatarGradient}">${initials}</div>
+          <div class="status-member-details">
+            <span class="status-member-name">${m.fullname}</span>
+            <span class="status-member-id">${m.id} | เบอร์: ${m.phone}</span>
+            <span class="status-member-expiry">แพ็กเกจ: ${result.planName}</span>
+            <span style="font-size: 11px; margin-top: 4px; display: inline-block;">
+              วันหมดอายุ: <strong class="font-eng" style="color: #fff;">${m.expiryDate}</strong> 
+              (<span class="badge ${result.status}" style="font-size: 9px; padding: 1px 4px;">${statusText}</span>)
+            </span>
+          </div>
+        </div>
+        
+        <button class="secondary-btn" id="checkin-clear-btn" style="width: auto; padding: 8px 20px; margin-top: 24px;">ถัดไป</button>
+      </div>
+    `;
+    playCheckinSound(result.status);
+  }
+
+  inputField.value = '';
+  inputField.focus();
+
+  renderCheckinLogToday();
+  refreshIcons();
+
+  const clearBtn = document.getElementById('checkin-clear-btn');
+  if (clearBtn) clearBtn.addEventListener('click', resetCheckinPanel);
+  const retryBtn = document.getElementById('checkin-retry-btn');
+  if (retryBtn) retryBtn.addEventListener('click', resetCheckinPanel);
+}
+
+function handleQuickDailyPassSubmit(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('daily-pass-name');
+  const priceInput = document.getElementById('daily-pass-price');
+  const paymentSelect = document.getElementById('daily-pass-payment');
+
+  const fullname = nameInput.value.trim() || 'ลูกค้า Walk-in';
+  const amount = Number(priceInput.value);
+  const paymentMethod = paymentSelect.value;
+
+  const result = DB.sellWalkInDaily(fullname, amount, paymentMethod);
+  const panel = document.getElementById('checkin-result-panel');
+  panel.className = 'checkin-status-panel active';
+
+  const m = result.member;
+  const initials = m.fullname.substring(0, 2);
+
+  panel.innerHTML = `
+    <div class="status-display" style="width: 100%;">
+      <div class="status-icon"><i data-lucide="check-circle-2" style="color: var(--color-success);"></i></div>
+      <div class="status-message" style="color: var(--color-success);">ซื้อตั๋วรายวันสำเร็จ! (เช็กอินทันที)</div>
+      <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 14px;">ชำระเงินค่าบริการ ฿${result.amount} เรียบร้อยแล้ว (สิทธิ์ใช้งานถึงเวลาปิดบริการวันนี้)</p>
+      
+      <div class="status-member-card" style="border-color: rgba(16, 185, 129, 0.3); background-color: rgba(16, 185, 129, 0.05);">
+        <div class="status-member-avatar" style="background: ${m.avatarGradient}">${initials}</div>
+        <div class="status-member-details">
+          <span class="status-member-name">${m.fullname}</span>
+          <span class="status-member-id">${m.id} (ตั๋วรายวันชั่วคราว)</span>
+          <span class="status-member-expiry">จ่ายโดย: ${paymentMethod}</span>
+          <span style="font-size: 11px; margin-top: 4px; display: inline-block;">
+            วันหมดอายุ: <strong class="font-eng" style="color: #fff;">${m.expiryDate}</strong>
+          </span>
+        </div>
+      </div>
+      
+      <button class="secondary-btn" id="checkin-clear-btn" style="width: auto; padding: 8px 20px; margin-top: 24px;">ถัดไป</button>
+    </div>
+  `;
+
+  playCheckinSound('active');
+
+  nameInput.value = '';
+  priceInput.value = '150';
+  paymentSelect.value = 'เงินสด';
+
+  renderCheckinLogToday();
+  refreshIcons();
+
+  const clearBtn = document.getElementById('checkin-clear-btn');
+  if (clearBtn) clearBtn.addEventListener('click', resetCheckinPanel);
+}
+
+// ----------------- 4. TRAFFIC VIEW CONTROLLER -----------------
+function renderTrafficView() {
+  const checkins = DB.getCheckins();
+  const tableBody = document.getElementById('traffic-table-body');
+  tableBody.innerHTML = '';
+
+  const datePicker = document.getElementById('traffic-date-picker');
+  if (!datePicker.value) {
+    const todayStr = DB.formatDateString(DB.getGymTodayDate());
+    datePicker.value = todayStr;
+  }
+
+  const selectedDateStr = datePicker.value;
+  const filteredLogs = checkins.filter(c => c.timestamp.startsWith(selectedDateStr));
+
+  if (filteredLogs.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 40px;">
+          ยังไม่มีทราฟฟิกประวัติคนเข้ายิมในวันที่เลือก
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filteredLogs.forEach(c => {
+    let statusText = 'ปกติ';
+    if (c.status === 'expired') statusText = 'หมดอายุ';
+    if (c.status === 'warning') statusText = 'ใกล้หมด';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-eng" style="color: var(--text-secondary);">${c.timestamp.split(' ')[1]} น.</td>
+      <td class="font-eng" style="font-weight: 600;">${c.memberId}</td>
+      <td style="font-weight: 500;">${c.memberName}</td>
+      <td>${c.planName}</td>
+      <td><span class="badge ${c.status}">${statusText}</span></td>
+    `;
+    tableBody.appendChild(tr);
+  });
+  
+  refreshIcons();
+}
+
+// ----------------- 5. BEVERAGE POS VIEW CONTROLLER -----------------
+function renderShopView() {
+  const products = DB.getProducts();
+  const catalogGrid = document.getElementById('shop-products-grid');
+  catalogGrid.innerHTML = '';
+
+  if (products.length === 0) {
+    catalogGrid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px; border: 1px dashed var(--border-color); border-radius: var(--border-radius);">
+        ยังไม่มีสินค้าเครื่องดื่มในร้านค้าขณะนี้ (เจ้าของยิมสามารถตั้งค่าและเพิ่มรายการสินค้าได้ที่หน้าการเงิน)
+      </div>
+    `;
+    renderCart();
+    return;
+  }
+
+  products.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.onclick = () => addToCart(p.id);
+    
+    card.innerHTML = `
+      <div class="product-icon-wrapper">
+        <i data-lucide="${p.icon || 'droplet'}"></i>
+      </div>
+      <div class="product-name-txt">${p.name}</div>
+      <div class="product-price-txt">฿${p.price}</div>
+    `;
+    catalogGrid.appendChild(card);
+  });
+
+  renderCart();
+  refreshIcons();
+}
+
+function addToCart(productId) {
+  const products = DB.getProducts();
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+
+  const cartItemIndex = shopCart.findIndex(item => item.product.id === productId);
+  if (cartItemIndex !== -1) {
+    shopCart[cartItemIndex].qty++;
+  } else {
+    shopCart.push({ product, qty: 1 });
+  }
+
+  renderCart();
+}
+
+function updateCartQty(productId, amount) {
+  const cartItemIndex = shopCart.findIndex(item => item.product.id === productId);
+  if (cartItemIndex === -1) return;
+
+  shopCart[cartItemIndex].qty += amount;
+  if (shopCart[cartItemIndex].qty <= 0) {
+    shopCart.splice(cartItemIndex, 1);
+  }
+
+  renderCart();
+}
+
+function renderCart() {
+  const cartList = document.getElementById('cart-items-list');
+  cartList.innerHTML = '';
+
+  let total = 0;
+
+  if (shopCart.length === 0) {
+    cartList.innerHTML = `
+      <div class="cart-empty-message">ไม่มีสินค้าในตะกร้า เลือกสินค้าทางด้านซ้าย</div>
+    `;
+    document.getElementById('cart-total-value').textContent = '฿0';
+    return;
+  }
+
+  shopCart.forEach(item => {
+    const itemTotal = item.product.price * item.qty;
+    total += itemTotal;
+
+    const row = document.createElement('div');
+    row.className = 'cart-item-row';
+    row.innerHTML = `
+      <div class="cart-item-info">
+        <span class="cart-item-name">${item.product.name}</span>
+        <span class="cart-item-price font-eng">฿${item.product.price} x ${item.qty}</span>
+      </div>
+      <div class="cart-item-actions">
+        <button class="cart-qty-btn font-eng" onclick="event.stopPropagation(); window.updateCartQty('${item.product.id}', -1)">-</button>
+        <span class="cart-item-qty">${item.qty}</span>
+        <button class="cart-qty-btn font-eng" onclick="event.stopPropagation(); window.updateCartQty('${item.product.id}', 1)">+</button>
+      </div>
+    `;
+    cartList.appendChild(row);
+  });
+
+  document.getElementById('cart-total-value').textContent = `฿${total.toLocaleString()}`;
+}
+
+function handleShopCheckout(e) {
+  e.preventDefault();
+  if (shopCart.length === 0) {
+    alert('ไม่มีสินค้าในตะกร้าเพื่อทำรายการชำระเงิน');
+    return;
+  }
+
+  const paymentMethod = document.getElementById('shop-payment-method').value;
+  const items = shopCart.map(item => ({
+    productId: item.product.id,
+    name: item.product.name,
+    qty: item.qty,
+    price: item.product.price
+  }));
+
+  const total = shopCart.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
+
+  const sale = DB.addShopSale(items, total, paymentMethod);
+  if (sale) {
+    playCheckinSound('active');
+    alert(`บันทึกการขายน้ำสำเร็จ! เลขใบเสร็จ: ${sale.id} ยอดรวม ฿${total}`);
+    shopCart = [];
+    renderCart();
+  }
+}
+
+// ----------------- 6. BILLING & PLANS VIEW CONTROLLER -----------------
+function renderBillingAndPlans() {
+  const plans = DB.getPlans();
+  const txs = DB.getTransactions();
+  const shopSales = DB.getShopSales();
+  const products = DB.getProducts();
+
+  // 1. เรนเดอร์การ์ดแผนการบริการ
+  const plansContainer = document.getElementById('plans-container');
+  plansContainer.innerHTML = '';
+
+  plans.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'plan-card';
+    card.innerHTML = `
+      <h4 class="plan-name">${p.name}</h4>
+      <div class="plan-price-display">
+        <span class="plan-price-num">${p.price.toLocaleString()}</span>
+        <span class="plan-price-currency">บาท</span>
+      </div>
+      <div class="plan-duration">มีผลครอบคลุมนาน ${p.durationDays} วัน</div>
+      <button class="secondary-btn edit-plan-btn" data-id="${p.id}">
+        <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; vertical-align: middle; margin-right: 4px;"></i>
+        แก้ไขค่าบริการ
+      </button>
+    `;
+    plansContainer.appendChild(card);
+  });
+
+  plansContainer.querySelectorAll('.edit-plan-btn').forEach(btn => {
+    btn.addEventListener('click', () => openEditPlanModal(btn.dataset.id));
+  });
+
+  // 2. เรนเดอร์เครื่องดื่มสำหรับ CRUD (Owner view เท่านั้น)
+  const productTableBody = document.getElementById('drink-manager-table-body');
+  productTableBody.innerHTML = '';
+
+  if (products.length === 0) {
+    productTableBody.innerHTML = `
+      <tr>
+        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">
+          ยังไม่มีรายการสินค้าเครื่องดื่มขายหน้าร้าน กดปุ่มเพื่อเพิ่ม
+        </td>
+      </tr>
+    `;
+  } else {
+    products.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="kpi-icon-wrapper" style="width: 32px; height: 32px; border-radius: 6px; font-size: 14px; background-color: rgba(255, 95, 31, 0.08);">
+            <i data-lucide="${p.icon || 'droplet'}"></i>
+          </div>
+        </td>
+        <td style="font-weight: 500;">${p.name}</td>
+        <td class="font-eng" style="font-weight: 600;">฿${p.price}</td>
+        <td>
+          <div class="action-buttons">
+            <button class="action-btn edit product-edit-btn" data-id="${p.id}" title="แก้ไข"><i data-lucide="edit-2"></i></button>
+            <button class="action-btn delete product-delete-btn" data-id="${p.id}" title="ลบ"><i data-lucide="trash-2"></i></button>
+          </div>
+        </td>
+      `;
+      productTableBody.appendChild(tr);
+    });
+
+    productTableBody.querySelectorAll('.product-edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => openProductModal(btn.dataset.id));
+    });
+    productTableBody.querySelectorAll('.product-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => handleDeleteProduct(btn.dataset.id));
+    });
+  }
+
+  // 3. เรนเดอร์ประวัติการเงินค่าสมาชิก
+  const tableBody = document.getElementById('billing-table-body');
+  tableBody.innerHTML = '';
+
+  if (txs.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+          ยังไม่พบรายการชำระเงินในระบบ
+        </td>
+      </tr>
+    `;
+  } else {
+    txs.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="font-eng" style="font-weight: 600; color: var(--accent-orange);">${t.id}</td>
+        <td>
+          <div style="font-weight: 500;">${t.memberName}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">รหัส: ${t.memberId}</div>
+        </td>
+        <td>${t.planName}</td>
+        <td class="font-eng" style="font-weight: 600;">฿${t.amount.toLocaleString()}</td>
+        <td>
+          <span style="background-color: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+            ${t.paymentMethod}
+          </span>
+        </td>
+        <td class="font-eng" style="color: var(--text-secondary);">${t.date}</td>
+      `;
+      tableBody.appendChild(tr);
+    });
+  }
+
+  // 4. เรนเดอร์ประวัติการเงินขายของร้านน้ำ
+  const shopSalesBody = document.getElementById('shop-sales-table-body');
+  shopSalesBody.innerHTML = '';
+
+  if (shopSales.length === 0) {
+    shopSalesBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+          ยังไม่พบประวัติการขายสินค้าเครื่องดื่มในยิม
+        </td>
+      </tr>
+    `;
+  } else {
+    shopSales.forEach(s => {
+      const itemsList = s.items.map(item => `${item.name} (x${item.qty})`).join(', ');
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="font-eng" style="font-weight: 600; color: var(--accent-gold);">${s.id}</td>
+        <td style="font-size: 13px;">${itemsList}</td>
+        <td class="font-eng" style="font-weight: 600;">฿${s.total.toLocaleString()}</td>
+        <td>
+          <span style="background-color: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+            ${s.paymentMethod}
+          </span>
+        </td>
+        <td class="font-eng" style="color: var(--text-secondary);">${s.date}</td>
+      `;
+      shopSalesBody.appendChild(tr);
+    });
+  }
+
+  loadSelectedDailyReport();
+  refreshIcons();
+}
+
+function openEditPlanModal(id) {
+  const modal = document.getElementById('edit-plan-modal');
+  const plans = DB.getPlans();
+  const plan = plans.find(p => p.id === id);
+
+  if (plan) {
+    document.getElementById('edit-plan-id').value = plan.id;
+    document.getElementById('edit-plan-name').value = plan.name;
+    document.getElementById('edit-plan-price').value = plan.price;
+    modal.classList.add('active');
+  }
+}
+
+function handleEditPlanSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('edit-plan-id').value;
+  const newPrice = document.getElementById('edit-plan-price').value;
+
+  const success = DB.updatePlanPrice(id, newPrice);
+  if (success) {
+    alert('บันทึกปรับราคาแพ็กเกจเรียบร้อยแล้ว');
+    document.getElementById('edit-plan-modal').classList.remove('active');
+    renderBillingAndPlans();
+  }
+}
+
+// ----------------- CRUD PRODUCTS (BEVERAGES) CONTROLLERS -----------------
+function openProductModal(id = null) {
+  const modal = document.getElementById('product-modal');
+  const title = document.getElementById('product-modal-title');
+  const form = document.getElementById('product-form');
+  
+  form.reset();
+
+  if (id) {
+    title.textContent = 'แก้ไขข้อมูลสินค้าเครื่องดื่ม';
+    const products = DB.getProducts();
+    const p = products.find(item => item.id === id);
+    if (p) {
+      document.getElementById('form-product-id').value = p.id;
+      document.getElementById('form-product-name').value = p.name;
+      document.getElementById('form-product-price').value = p.price;
+      document.getElementById('form-product-icon').value = p.icon;
+    }
+  } else {
+    title.textContent = 'เพิ่มเครื่องดื่มขายหน้าร้าน';
+    document.getElementById('form-product-id').value = '';
+  }
+
+  modal.classList.add('active');
+}
+
+function handleProductFormSubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('form-product-id').value;
+  const name = document.getElementById('form-product-name').value;
+  const price = document.getElementById('form-product-price').value;
+  const icon = document.getElementById('form-product-icon').value;
+
+  if (id) {
+    DB.updateProduct(id, name, price, icon);
+    alert('แก้ไขรายละเอียดสินค้าเครื่องดื่มเรียบร้อย');
+  } else {
+    DB.addProduct(name, price, icon);
+    alert('เพิ่มสินค้าใหม่เข้าร้านค้าเรียบร้อย');
+  }
+
+  document.getElementById('product-modal').classList.remove('active');
+  renderBillingAndPlans();
+}
+
+function handleDeleteProduct(id) {
+  if (confirm('คุณต้องการลบเครื่องดื่มรายการนี้ออกจากร้านขายหน้าร้านหรือไม่?')) {
+    DB.deleteProduct(id);
+    renderBillingAndPlans();
+  }
+}
+
+// ----------------- DAILY SUMMARY ARCHIVE RENDERS -----------------
+function loadSelectedDailyReport() {
+  const datePicker = document.getElementById('archive-date-picker');
+  
+  if (!datePicker.value) {
+    const todayStr = DB.formatDateString(DB.getGymTodayDate());
+    datePicker.value = todayStr;
+  }
+
+  const dateStr = datePicker.value;
+  const summary = DB.getDailySummary(dateStr);
+
+  document.getElementById('daily-sum-members').textContent = `฿${summary.membershipSales.toLocaleString()}`;
+  document.getElementById('daily-sum-beverages').textContent = `฿${summary.shopSales.toLocaleString()}`;
+  document.getElementById('daily-sum-passes').textContent = `${summary.dailyPasses} ใบ`;
+  document.getElementById('daily-sum-users').textContent = `${summary.checkinsCount} คน`;
+  document.getElementById('daily-sum-total').textContent = `฿${summary.totalRevenue.toLocaleString()}`;
+
+  renderDailyArchivesTable();
+}
+
+function renderDailyArchivesTable() {
+  const archives = DB.getArchivedSummaries();
+  const tbody = document.getElementById('daily-archives-table-body');
+  tbody.innerHTML = '';
+
+  if (archives.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
+          ยังไม่ประวัติบันทึกการปิดยอดบัญชีรายวัน
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const sortedArchives = [...archives].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  sortedArchives.forEach(a => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="font-eng" style="font-weight: 600;">${a.date}</td>
+      <td class="font-eng">฿${a.membershipSales.toLocaleString()}</td>
+      <td class="font-eng">฿${a.shopSales.toLocaleString()}</td>
+      <td class="font-eng">${a.dailyPasses} ใบ</td>
+      <td class="font-eng">${a.checkinsCount} คน</td>
+      <td class="font-eng" style="font-weight: 600; color: var(--accent-gold);">฿${a.totalRevenue.toLocaleString()}</td>
+      <td><span class="badge active" style="font-size: 10px; padding: 2px 6px; background-color: rgba(16, 185, 129, 0.1); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.2);">ปิดยอดเสร็จ</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function handleCloseTodayLedger() {
+  const dateStr = document.getElementById('archive-date-picker').value;
+  if (!dateStr) return;
+
+  const summary = DB.getDailySummary(dateStr);
+
+  if (confirm(`คุณต้องการปิดยอดบัญชีรายวันของวันที่ "${dateStr}" ใช่หรือไม่? ยอดรวมรายรับที่จะปิดสรุปคือ ฿${summary.totalRevenue.toLocaleString()}`)) {
+    DB.archiveDailySummary(dateStr);
+    alert(`ปิดยอดบัญชีรายวันของวันที่ ${dateStr} เรียบร้อยแล้ว!`);
+    loadSelectedDailyReport();
+  }
+}
+
+// ----------------- 7. MEMBER DETAILS & RENEWAL MODALS -----------------
+function openDetailModal(id) {
+  const members = DB.getMembers();
+  const plans = DB.getPlans();
+  const checkins = DB.getCheckins();
+
+  const m = members.find(item => item.id === id);
+  if (!m) return;
+
+  const plan = plans.find(p => p.id === m.planId);
+  const planName = plan ? plan.name : 'ไม่ระบุ';
+
+  const avatar = document.getElementById('detail-avatar');
+  avatar.style.background = m.avatarGradient;
+  avatar.textContent = m.fullname.substring(0, 2);
+
+  document.getElementById('detail-name').textContent = m.fullname;
+  document.getElementById('detail-id').textContent = m.id;
+  document.getElementById('detail-phone').textContent = m.phone;
+  document.getElementById('detail-email').textContent = m.email;
+  document.getElementById('detail-gender').textContent = m.gender;
+  document.getElementById('detail-plan').textContent = planName;
+  document.getElementById('detail-joindate').textContent = m.joinDate;
+  document.getElementById('detail-expirydate').textContent = m.expiryDate;
+
+  const statusBadge = document.getElementById('detail-status');
+  statusBadge.className = `badge ${m.status}`;
+  
+  let statusText = 'กำลังใช้งาน';
+  if (m.status === 'expired') statusText = 'หมดอายุ';
+  if (m.status === 'warning') statusText = 'ใกล้หมด';
+  statusBadge.textContent = statusText;
+
+  const specificCheckins = checkins.filter(c => c.memberId === m.id);
+  const checkinList = document.getElementById('detail-checkins-list');
+  checkinList.innerHTML = '';
+
+  if (specificCheckins.length === 0) {
+    checkinList.innerHTML = `
+      <div style="text-align: center; color: var(--text-muted); padding: 12px; font-size: 12px;">
+        ยังไม่มีประวัติการเช็กเข้าใช้งานสำหรับสมาชิกรายนี้
+      </div>
+    `;
+  } else {
+    specificCheckins.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'checkin-row';
+      div.style.padding = '8px 12px';
+      
+      let badgeLabel = 'ผ่าน';
+      if (c.status === 'expired') badgeLabel = 'ระงับ (หมดอายุ)';
+      if (c.status === 'warning') badgeLabel = 'แจ้งเตือนใกล้หมด';
+
+      div.innerHTML = `
+        <span class="font-eng" style="font-size: 13px;">${c.timestamp}</span>
+        <span class="badge ${c.status}" style="font-size: 9px; padding: 2px 4px;">${badgeLabel}</span>
+      `;
+      checkinList.appendChild(div);
+    });
+  }
+
+  const renewBtn = document.getElementById('detail-renew-btn');
+  renewBtn.onclick = () => {
+    document.getElementById('detail-modal').classList.remove('active');
+    openRenewalModal(m.id);
+  };
+
+  document.getElementById('detail-modal').classList.add('active');
+  refreshIcons();
+}
+
+function openRenewalModal(memberId) {
+  const members = DB.getMembers();
+  const plans = DB.getPlans();
+  const m = members.find(item => item.id === memberId);
+  if (!m) return;
+
+  document.getElementById('renew-member-id').value = m.id;
+  document.getElementById('renew-member-name').textContent = `${m.fullname} (${m.id})`;
+
+  const select = document.getElementById('renew-plan-select');
+  select.innerHTML = plans.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+  const specialCheckbox = document.getElementById('renew-special-checkbox');
+  const priceInput = document.getElementById('renew-price-input');
+  
+  specialCheckbox.checked = false;
+  priceInput.disabled = true;
+
+  const updatePrice = () => {
+    const selectedPlan = plans.find(p => p.id === select.value);
+    if (selectedPlan && !specialCheckbox.checked) {
+      priceInput.value = selectedPlan.price;
+    }
+  };
+  
+  select.onchange = updatePrice;
+  
+  specialCheckbox.onchange = () => {
+    if (specialCheckbox.checked) {
+      priceInput.disabled = false;
+      priceInput.focus();
+    } else {
+      priceInput.disabled = true;
+      updatePrice();
+    }
+  };
+
+  updatePrice();
+  document.getElementById('renew-modal').classList.add('active');
+}
+
+function handleRenewalSubmit(e) {
+  e.preventDefault();
+  const memberId = document.getElementById('renew-member-id').value;
+  const planId = document.getElementById('renew-plan-select').value;
+  const amount = document.getElementById('renew-price-input').value;
+  const paymentMethod = document.getElementById('renew-payment-method').value;
+
+  const members = DB.getMembers();
+  const plans = DB.getPlans();
+  
+  const m = members.find(item => item.id === memberId);
+  const plan = plans.find(p => p.id === planId);
+
+  if (m && plan) {
+    const today = DB.getGymTodayDate();
+    let baseDate = new Date(m.expiryDate);
+    
+    if (m.status === 'expired') {
+      baseDate = today;
+    }
+
+    baseDate.setDate(baseDate.getDate() + plan.durationDays);
+    const newExpiryStr = DB.formatDateString(baseDate);
+
+    m.planId = planId;
+    m.expiryDate = newExpiryStr;
+    DB.updateMember(m);
+
+    const isSpecial = document.getElementById('renew-special-checkbox').checked;
+    const planNameNote = isSpecial ? `${plan.name} (เรตพิเศษ)` : plan.name;
+
+    const transactions = DB.getTransactions();
+    const dateStr = today.getFullYear() + '-' + 
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(today.getDate()).padStart(2, '0') + ' ' + 
+                    String(today.getHours()).padStart(2, '0') + ':' + 
+                    String(today.getMinutes()).padStart(2, '0');
+
+    const txId = 'TX-' + (1000 + transactions.length + 1);
+    
+    const newTx = {
+      id: txId,
+      memberId: memberId,
+      memberName: m.fullname,
+      planId: planId,
+      planName: planNameNote,
+      amount: Number(amount),
+      paymentMethod: paymentMethod,
+      date: dateStr
+    };
+    
+    transactions.unshift(newTx);
+    DB.saveTransactions(transactions);
+
+    alert(`ต่ออายุเรียบร้อย! วันหมดอายุใหม่คือ ${newExpiryStr} ชำระเงิน ฿${amount}`);
+    document.getElementById('renew-modal').classList.remove('active');
+    
+    renderMembersList();
+    renderBillingAndPlans();
+  }
+}
+
+// ----------------- 8. SPA ROTATION & MAIN SETUP -----------------
+document.addEventListener('DOMContentLoaded', () => {
+  window.updateCartQty = updateCartQty;
+
+  DB.initializeData();
+
+  // ดักการสลับบทบาทผู้ใช้
+  const roleSelect = document.getElementById('role-toggle-select');
+  roleSelect.addEventListener('change', () => {
+    updateRoleViews();
+    if (currentRole === 'staff') {
+      navigateToView('checkin');
+    } else {
+      navigateToView('dashboard');
+    }
+  });
+
+  updateRoleViews();
+
+  // ดักฟิลเตอร์การแสดงผลกราฟแดชบอร์ดการเงิน
+  document.querySelectorAll('.chart-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.chart-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentChartFilter = btn.dataset.filter;
+      renderDashboard();
+    });
+  });
+
+  // ตัวตรวจจับกล่อง "กรณีพิเศษ" ในฟอร์มสมัครสมาชิก
+  const specialCheckbox = document.getElementById('form-special-checkbox');
+  const specialInputWrapper = document.getElementById('form-special-input-wrapper');
+  const specialPriceInput = document.getElementById('form-special-price');
+  
+  specialCheckbox.addEventListener('change', () => {
+    if (specialCheckbox.checked) {
+      specialInputWrapper.classList.add('active');
+      specialPriceInput.required = true;
+      specialPriceInput.focus();
+    } else {
+      specialInputWrapper.classList.remove('active');
+      specialPriceInput.required = false;
+      
+      const plans = DB.getPlans();
+      const planId = document.getElementById('form-plan').value;
+      const plan = plans.find(p => p.id === planId);
+      if (plan) {
+        specialPriceInput.value = plan.price;
+      }
+    }
+  });
+
+  // ดักการเปลี่ยนปฏิทิน และการคลิกปิดยอดรายวัน
+  const archiveDatePicker = document.getElementById('archive-date-picker');
+  archiveDatePicker.addEventListener('change', loadSelectedDailyReport);
+  document.getElementById('close-today-ledger-btn').addEventListener('click', handleCloseTodayLedger);
+
+  // ดักการเปลี่ยนปฏิทินในหน้า Traffic View
+  const trafficDatePicker = document.getElementById('traffic-date-picker');
+  trafficDatePicker.addEventListener('change', renderTrafficView);
+  
+  // กำหนดเป็นวันปัจจุบันเป็นค่าตั้งต้นสำหรับหน้า Traffic
+  const todayStr = DB.formatDateString(DB.getGymTodayDate());
+  trafficDatePicker.value = todayStr;
+
+  // ดักเหตุการณ์นำทางสลับหน้าจอ (Sidebar Menu Navigation)
+  document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      
+      const targetView = link.dataset.view;
+      if (!targetView) return;
+
+      if (currentRole === 'staff' && (targetView === 'dashboard' || targetView === 'billing')) {
+        return;
+      }
+
+      document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+
+      document.querySelectorAll('.views-container .view-panel').forEach(panel => {
+        panel.classList.remove('active');
+      });
+      document.getElementById(`${targetView}-view`).classList.add('active');
+
+      const titleText = link.querySelector('span').textContent;
+      document.getElementById('current-view-title').textContent = titleText;
+
+      loadViewData(targetView);
+    });
+  });
+
+  // ค้นหาและตัวกรองสถานะสมาชิก
+  const searchInput = document.getElementById('member-search');
+  searchInput.addEventListener('input', (e) => {
+    memberFilterState.searchQuery = e.target.value;
+    renderMembersList();
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      memberFilterState.statusFilter = btn.dataset.filter;
+      renderMembersList();
+    });
+  });
+
+  // จัดการฟอร์มสมาชิก
+  document.getElementById('add-member-trigger').addEventListener('click', () => openMemberFormModal());
+  document.getElementById('member-form').addEventListener('submit', handleMemberFormSubmit);
+  document.getElementById('form-plan').addEventListener('change', updateFormExpiryDate);
+  document.getElementById('form-joindate').addEventListener('change', updateFormExpiryDate);
+
+  // จัดการรายการของเครื่องดื่ม (CRUD)
+  document.getElementById('add-product-trigger').addEventListener('click', () => openProductModal());
+  document.getElementById('product-form').addEventListener('submit', handleProductFormSubmit);
+
+  // ดักการส่งเช็กชื่อด่วน (สมาชิกธรรมดา)
+  document.getElementById('checkin-submit-form').addEventListener('submit', handleQuickCheckin);
+  
+  // ดักการส่งเช็กตั๋วรายวันด่วน Walk-in
+  document.getElementById('quick-daily-pass-form').addEventListener('submit', handleQuickDailyPassSubmit);
+
+  // ดักสั่งซื้อของ POS ร้านน้ำ
+  document.getElementById('shop-checkout-form').addEventListener('submit', handleShopCheckout);
+
+  // จัดการราคาแพ็กเกจและต่ออายุใช้งาน
+  document.getElementById('edit-plan-form').addEventListener('submit', handleEditPlanSubmit);
+  document.getElementById('renew-form').addEventListener('submit', handleRenewalSubmit);
+
+  // ปุ่มเปิด/ปิดโมดอลอเนกประสงค์
+  const setupModalCloser = (closeBtnId, cancelBtnId, modalId) => {
+    const modal = document.getElementById(modalId);
+    const close = () => modal.classList.remove('active');
+    
+    document.getElementById(closeBtnId).addEventListener('click', close);
+    if (cancelBtnId) {
+      document.getElementById(cancelBtnId).addEventListener('click', close);
+    }
+  };
+
+  setupModalCloser('close-member-modal', 'cancel-member-modal', 'member-modal');
+  setupModalCloser('close-detail-modal', null, 'detail-modal');
+  setupModalCloser('close-renew-modal', 'cancel-renew-modal', 'renew-modal');
+  setupModalCloser('close-edit-plan-modal', 'cancel-edit-plan-modal', 'edit-plan-modal');
+  setupModalCloser('close-product-modal', 'cancel-product-modal', 'product-modal');
+
+  navigateToView('checkin');
+});
