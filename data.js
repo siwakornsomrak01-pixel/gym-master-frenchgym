@@ -788,7 +788,15 @@ export function verifyPin(pin) {
 
 export function getAuditLogs() {
   initializeData();
-  return JSON.parse(localStorage.getItem('gm_audit_logs')) || [];
+  try {
+    const data = localStorage.getItem('gm_audit_logs');
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error parsing audit logs:', e);
+    return [];
+  }
 }
 
 export function saveAuditLogs(logs) {

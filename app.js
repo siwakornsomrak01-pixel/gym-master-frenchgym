@@ -197,16 +197,22 @@ function renderAuditLogs() {
   const auditTableBody = document.getElementById('audit-table-body');
   if (!auditTableBody) return;
 
-  const logs = DB.getAuditLogs();
+  const logs = DB.getAuditLogs() || [];
   const searchVal = document.getElementById('audit-search-input')?.value.toLowerCase() || '';
   const filterAction = document.getElementById('audit-filter-action')?.value || '';
 
   const filteredLogs = logs.filter(log => {
+    if (!log) return false;
+    const logId = (log.id || '').toLowerCase();
+    const userName = (log.userName || '').toLowerCase();
+    const action = (log.action || '').toLowerCase();
+    const details = (log.details || '').toLowerCase();
+
     // 1. ค้นหาความตรงตามคำค้น
-    const matchSearch = log.userName.toLowerCase().includes(searchVal) ||
-                        log.action.toLowerCase().includes(searchVal) ||
-                        log.details.toLowerCase().includes(searchVal) ||
-                        log.id.toLowerCase().includes(searchVal);
+    const matchSearch = userName.includes(searchVal) ||
+                        action.includes(searchVal) ||
+                        details.includes(searchVal) ||
+                        logId.includes(searchVal);
     
     // 2. คัดกรองตามหมวดหมู่กิจกรรม
     const matchAction = !filterAction || log.action === filterAction;
@@ -227,34 +233,40 @@ function renderAuditLogs() {
         </td>
       </tr>
     `;
-    lucide.createIcons();
+    refreshIcons();
     return;
   }
 
   filteredLogs.forEach(log => {
     const tr = document.createElement('tr');
     
+    const userName = log.userName || 'ระบบหลัก';
+    const logId = log.id || '';
+    const timestamp = log.timestamp || '';
+    const action = log.action || '';
+    const details = log.details || '';
+
     // สร้าง Badge สำหรับผู้ปฏิบัติงานตามสิทธิ์
     let badgeClass = 'system';
-    if (log.userName.includes('Owner')) {
+    if (userName.includes('Owner')) {
       badgeClass = 'owner';
-    } else if (log.userName.includes('Staff')) {
+    } else if (userName.includes('Staff')) {
       badgeClass = 'staff';
     }
 
     tr.innerHTML = `
-      <td style="font-family: var(--font-eng); font-weight: 600; color: var(--text-secondary);">${log.id}</td>
-      <td style="font-family: var(--font-eng); font-size: 13px;">${log.timestamp}</td>
+      <td style="font-family: var(--font-eng); font-weight: 600; color: var(--text-secondary);">${logId}</td>
+      <td style="font-family: var(--font-eng); font-size: 13px;">${timestamp}</td>
       <td>
-        <span class="audit-badge ${badgeClass}">${log.userName}</span>
+        <span class="audit-badge ${badgeClass}">${userName}</span>
       </td>
-      <td style="font-weight: 500; color: var(--text-primary);">${log.action}</td>
-      <td style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">${log.details}</td>
+      <td style="font-weight: 500; color: var(--text-primary);">${action}</td>
+      <td style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">${details}</td>
     `;
     auditTableBody.appendChild(tr);
   });
 
-  lucide.createIcons();
+  refreshIcons();
 }
 
 // ----------------- 1. DASHBOARD VIEW CONTROLLER -----------------
