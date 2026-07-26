@@ -12,8 +12,8 @@
   
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-C7yRR8km.js"></script>
-  <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-Cyd6k3V4.css">
+  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-B9ndbuQu.js"></script>
+  <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-lLdcCmXB.css">
 </head>
 <body>
 
@@ -64,6 +64,12 @@
               <span>แพ็กเกจและการเงิน</span>
             </a>
           </li>
+          <li class="nav-item" id="nav-item-audit">
+            <a class="nav-link" data-view="audit">
+              <i data-lucide="shield-alert"></i>
+              <span>ประวัติออดิต</span>
+            </a>
+          </li>
         </ul>
       </nav>
       
@@ -82,12 +88,13 @@
           <h1 id="current-view-title">แดชบอร์ดสรุปผล</h1>
         </div>
         <div class="header-status">
-          <div class="role-selector-wrapper" style="margin-right: 12px;">
-            <i data-lucide="shield-check" style="color: var(--accent-gold); width: 16px; height: 16px; margin-right: -4px;"></i>
-            <select class="role-select" id="role-toggle-select">
-              <option value="owner">เจ้าของยิม (Owner)</option>
-              <option value="staff">พนักงานเคาน์เตอร์ (Staff)</option>
-            </select>
+          <div class="user-profile-wrapper" id="header-user-wrapper" style="margin-right: 12px; display: flex; align-items: center; gap: 8px; background-color: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 20px;">
+            <i data-lucide="user" style="color: var(--accent-orange); width: 15px; height: 15px;"></i>
+            <span id="header-user-name" style="font-weight: 500; font-size: 13px; color: var(--text-primary);">-</span>
+            <button class="action-btn view-btn" id="header-switch-user-btn" title="สลับพนักงาน/ผู้ใช้" style="padding: 2px 8px; font-size: 11px; height: 24px; display: flex; align-items: center; gap: 4px; border-radius: 12px; margin-left: 4px;">
+              <i data-lucide="key-round" style="width: 11px; height: 11px;"></i>
+              <span>สลับผู้ใช้</span>
+            </button>
           </div>
           <div class="status-indicator">
             <span class="status-dot"></span>
@@ -507,6 +514,50 @@
               </form>
             </div>
           </div>
+        <!-- 7. AUDIT LOGS VIEW -->
+        <section id="audit-view" class="view-panel">
+          <div class="panel-card">
+            <div class="panel-header" style="flex-wrap: wrap; gap: 16px;">
+              <div class="panel-title-area">
+                <h2>บันทึกประวัติความปลอดภัยระบบ (Audit Logs)</h2>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">ประวัติการทำงานของพนักงานทั้งหมดเพื่อป้องกันทุจริตและการแก้ไขข้อมูลหน้าร้าน</p>
+              </div>
+              <div class="flex-actions" style="gap: 12px; display: flex; flex-wrap: wrap;">
+                <input type="text" id="audit-search-input" placeholder="ค้นหาพนักงาน/รายละเอียด..." class="form-input" style="width: 240px; height: 38px;">
+                <select id="audit-filter-action" class="form-select" style="width: 180px; height: 38px;">
+                  <option value="">ทุกกิจกรรม</option>
+                  <option value="เข้าสู่ระบบ">เข้าสู่ระบบ / ออกจากระบบ</option>
+                  <option value="เช็กอินเข้ายิม">เช็กอินเข้ายิม</option>
+                  <option value="สมัครสมาชิก">สมัครสมาชิก</option>
+                  <option value="ต่ออายุสมาชิก">ต่ออายุสมาชิก</option>
+                  <option value="ขายเครื่องดื่ม">ขายเครื่องดื่ม</option>
+                  <option value="ออกตั๋วรายวัน">ออกตั๋วรายวัน</option>
+                  <option value="แก้ไขราคาแผนบริการ">แก้ไขราคาแผนบริการ</option>
+                  <option value="แก้ไขเครื่องดื่ม">การจัดการสินค้า (เพิ่ม/แก้)</option>
+                  <option value="ลบเครื่องดื่ม">ลบเครื่องดื่ม</option>
+                  <option value="ลบสมาชิก">ลบสมาชิก</option>
+                  <option value="ปิดยอดบัญชี">ปิดยอดบัญชี</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 20px;">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th style="width: 100px;">รหัสบันทึก</th>
+                    <th style="width: 160px;">วัน-เวลา</th>
+                    <th style="width: 180px;">ผู้ปฏิบัติงาน</th>
+                    <th style="width: 180px;">กิจกรรม</th>
+                    <th>รายละเอียดเชิงลึก</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-table-body">
+                  <!-- แทรกข้อมูล Audit Logs จาก JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
       </div>
@@ -774,6 +825,55 @@
           <button type="submit" class="primary-btn">บันทึกสินค้า</button>
         </div>
       </form>
+    </div>
+  <!-- Modal 0: PIN Login Overlay Screen -->
+  <div class="modal-overlay active" id="pin-login-modal" style="z-index: 9999; backdrop-filter: blur(25px); background-color: rgba(10, 10, 12, 0.98); display: flex; align-items: center; justify-content: center;">
+    <div class="modal-content" style="width: 380px; max-width: 90%; background-color: var(--bg-card); border: 1px solid var(--border-color); text-align: center; padding: 35px 25px; border-radius: var(--border-radius); box-shadow: var(--shadow-neon);">
+      <div style="margin-bottom: 25px;">
+        <div class="logo-icon-wrapper" style="margin: 0 auto 12px; width: 60px; height: 60px; background-color: var(--bg-body); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--accent-orange); box-shadow: var(--shadow-neon);">
+          <i data-lucide="dumbbell" style="color: var(--accent-orange); width: 30px; height: 30px;"></i>
+        </div>
+        <h2 style="font-weight: 700; font-size: 24px; color: var(--text-primary); margin-bottom: 6px;">ระบบควบคุมยิม Gym Master</h2>
+        <p style="color: var(--text-secondary); font-size: 13px;">กรุณากรอกรหัส PIN 4 หลักเพื่อลงชื่อเข้าใช้งาน</p>
+      </div>
+
+      <!-- Display Dots -->
+      <div class="pin-display-container" style="display: flex; justify-content: center; gap: 20px; margin-bottom: 30px;">
+        <span class="pin-dot" id="pin-dot-1" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-color); transition: var(--transition-smooth); background-color: transparent;"></span>
+        <span class="pin-dot" id="pin-dot-2" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-color); transition: var(--transition-smooth); background-color: transparent;"></span>
+        <span class="pin-dot" id="pin-dot-3" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-color); transition: var(--transition-smooth); background-color: transparent;"></span>
+        <span class="pin-dot" id="pin-dot-4" style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-color); transition: var(--transition-smooth); background-color: transparent;"></span>
+      </div>
+
+      <!-- PIN Input Status Message -->
+      <p id="pin-login-message" style="font-size: 13px; min-height: 18px; margin-bottom: 20px; color: var(--text-secondary); transition: var(--transition-smooth);"></p>
+
+      <!-- Keypad Grid -->
+      <div class="numpad-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 0 auto; max-width: 280px;">
+        <button class="numpad-btn" data-val="1">1</button>
+        <button class="numpad-btn" data-val="2">2</button>
+        <button class="numpad-btn" data-val="3">3</button>
+        <button class="numpad-btn" data-val="4">4</button>
+        <button class="numpad-btn" data-val="5">5</button>
+        <button class="numpad-btn" data-val="6">6</button>
+        <button class="numpad-btn" data-val="7">7</button>
+        <button class="numpad-btn" data-val="8">8</button>
+        <button class="numpad-btn" data-val="9">9</button>
+        <button class="numpad-btn numpad-action" id="pin-clear-btn" data-val="C" style="font-size: 16px; color: var(--color-danger); font-weight: bold; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2);">C</button>
+        <button class="numpad-btn" data-val="0">0</button>
+        <button class="numpad-btn numpad-action" id="pin-back-btn" data-val="B" style="font-size: 16px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); border-color: var(--border-color);">
+          <i data-lucide="delete" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+
+      <div style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 15px; font-size: 12px; color: var(--text-secondary); text-align: left;">
+        <p style="margin-bottom: 6px; font-weight: 500; color: var(--text-primary);">รหัส PIN ทดสอบระบบ:</p>
+        <div style="display: flex; gap: 8px;">
+          <span style="background-color: var(--bg-body); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">Owner: 1111</span>
+          <span style="background-color: var(--bg-body); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">สมชาย: 2222</span>
+          <span style="background-color: var(--bg-body); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">สมหญิง: 3333</span>
+        </div>
+      </div>
     </div>
   </div>
 
