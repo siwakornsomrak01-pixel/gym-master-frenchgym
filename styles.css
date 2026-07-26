@@ -1228,8 +1228,8 @@ body {
   }
 }
 
-/* ==================== ROLE SWITCHER & RESTRICTED ACCESS ==================== */
-.role-selector-wrapper {
+/* ==================== USER PROFILE HEADER WIDGET ==================== */
+.user-profile-wrapper {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1240,28 +1240,10 @@ body {
   transition: var(--transition-smooth);
 }
 
-.role-selector-wrapper:hover {
+.user-profile-wrapper:hover {
   border-color: var(--accent-orange);
-  box-shadow: 0 0 10px rgba(255, 95, 31, 0.1);
+  box-shadow: 0 0 10px rgba(255, 95, 31, 0.15);
 }
-
-.role-select {
-  background: none;
-  border: none;
-  color: #fff;
-  font-family: var(--font-thai);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-  padding-right: 4px;
-}
-
-.role-select option {
-  background-color: var(--bg-sidebar);
-  color: #fff;
-}
-
 /* Screen Restricted Page Mode */
 .access-denied-panel {
   display: flex;
