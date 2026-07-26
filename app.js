@@ -1372,6 +1372,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   DB.initializeData();
 
+  // อัปเดตวันที่จริงของระบบที่ sidebar-footer
+  const dateEl = document.getElementById('sidebar-current-date');
+  if (dateEl) {
+    const today = DB.getGymTodayDate();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    dateEl.textContent = `วันที่: ${today.toLocaleDateString('th-TH', options)}`;
+  }
+
   // ดักการสลับบทบาทผู้ใช้
   const roleSelect = document.getElementById('role-toggle-select');
   roleSelect.addEventListener('change', () => {

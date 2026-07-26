@@ -188,9 +188,9 @@ const INITIAL_DAILY_ARCHIVES = [
   }
 ];
 
-// ฟังก์ชันดึงวันที่ปัจจุบันในยิม (เซ็ตให้เป็น 2026-07-25 สำหรับการทดสอบที่สมเหตุสมผลตาม Metadata)
+// ฟังก์ชันดึงวันที่ปัจจุบันในยิม (เวลาปัจจุบันของระบบ)
 export function getGymTodayDate() {
-  return new Date('2026-07-25T07:35:08');
+  return new Date();
 }
 
 // ช่วยจัดรูปแบบวันที่เป็น YYYY-MM-DD
