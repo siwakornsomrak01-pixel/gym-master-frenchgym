@@ -43,7 +43,9 @@ export async function syncFromCloud() {
     { name: 'transactions', storageKey: 'gm_transactions' },
     { name: 'shop_sales', storageKey: 'gm_shop_sales' },
     { name: 'checkins', storageKey: 'gm_checkins' },
-    { name: 'daily_archives', storageKey: 'gm_daily_archives' }
+    { name: 'daily_archives', storageKey: 'gm_daily_archives' },
+    { name: 'users', storageKey: 'gm_users' },
+    { name: 'audit_logs', storageKey: 'gm_audit_logs' }
   ];
 
   for (const col of collections) {
@@ -69,6 +71,25 @@ export async function syncFromCloud() {
     }
   }
 }
+
+// รายการบัญชีและรหัส PIN พนักงานหน้าร้านตั้งต้น
+const INITIAL_USERS = [
+  { id: 'user-owner', name: 'คุณนพกร (Owner)', pin: '1111', role: 'owner' },
+  { id: 'user-staff1', name: 'สมชาย (Staff)', pin: '2222', role: 'staff' },
+  { id: 'user-staff2', name: 'สมหญิง (Staff)', pin: '3333', role: 'staff' }
+];
+
+// รายการบันทึกกิจกรรมประวัติระบบตั้งต้น
+const INITIAL_AUDIT_LOGS = [
+  {
+    id: 'LOG-1000',
+    timestamp: '2026-07-25 08:00:00',
+    userId: 'user-owner',
+    userName: 'คุณนพกร (Owner)',
+    action: 'เริ่มต้นระบบ',
+    details: 'เปิดใช้งานแอปพลิเคชัน Gym Master คลาวด์ซิงก์เรียบร้อยแล้ว'
+  }
+];
 
 // รายการแพ็กเกจตั้งต้น
 const INITIAL_PLANS = [
@@ -263,6 +284,12 @@ export function initializeData() {
   if (!localStorage.getItem('gm_daily_archives')) {
     localStorage.setItem('gm_daily_archives', JSON.stringify(INITIAL_DAILY_ARCHIVES));
   }
+  if (!localStorage.getItem('gm_users')) {
+    localStorage.setItem('gm_users', JSON.stringify(INITIAL_USERS));
+  }
+  if (!localStorage.getItem('gm_audit_logs')) {
+    localStorage.setItem('gm_audit_logs', JSON.stringify(INITIAL_AUDIT_LOGS));
+  }
 
   // ถ้าต่อ Firebase สำเร็จ ให้ดึงข้อมูลมาเขียนทับ LocalStorage ในเบื้องหลัง (รันครั้งเดียวต่อเซสชัน)
   if (isFirebaseConnected && !window._isFirebaseSyncingStarted) {
@@ -288,8 +315,10 @@ export function updatePlanPrice(planId, newPrice) {
   const plans = getPlans();
   const planIndex = plans.findIndex(p => p.id === planId);
   if (planIndex !== -1) {
+    const oldPrice = plans[planIndex].price;
     plans[planIndex].price = Number(newPrice);
     savePlans(plans);
+    addAuditLog('แก้ไขราคาแผนบริการ', `แก้ไขราคาของแผน ${plans[planIndex].name} จาก ฿${oldPrice.toLocaleString()} เป็น ฿${Number(newPrice).toLocaleString()}`);
     return true;
   }
   return false;
@@ -318,6 +347,7 @@ export function addProduct(name, price, icon) {
   };
   products.push(newProduct);
   saveProducts(products);
+  addAuditLog('เพิ่มเครื่องดื่ม', `เพิ่มสินค้าใหม่: ${name} ราคา ฿${Number(price).toLocaleString()}`);
   return newProduct;
 }
 
@@ -325,6 +355,7 @@ export function updateProduct(id, name, price, icon) {
   const products = getProducts();
   const index = products.findIndex(p => p.id === id);
   if (index !== -1) {
+    const oldProduct = products[index];
     products[index] = {
       ...products[index],
       name: name,
@@ -332,6 +363,7 @@ export function updateProduct(id, name, price, icon) {
       icon: icon || 'droplet'
     };
     saveProducts(products);
+    addAuditLog('แก้ไขเครื่องดื่ม', `แก้ไขสินค้า: ${oldProduct.name} -> ${name} ราคา ฿${Number(price).toLocaleString()}`);
     return true;
   }
   return false;
@@ -339,9 +371,13 @@ export function updateProduct(id, name, price, icon) {
 
 export function deleteProduct(id) {
   const products = getProducts();
+  const deleted = products.find(p => p.id === id);
   const filtered = products.filter(p => p.id !== id);
   if (products.length !== filtered.length) {
     saveProducts(filtered);
+    if (deleted) {
+      addAuditLog('ลบเครื่องดื่ม', `ทำการลบสินค้าเครื่องดื่มออกจากระบบ: ${deleted.name}`);
+    }
     return true;
   }
   return false;
@@ -417,6 +453,7 @@ export function addMember(memberData) {
 
   members.push(newMember);
   saveMembers(members);
+  addAuditLog('สมัครสมาชิก', `ลงทะเบียนสมาชิกใหม่ รหัส ${newId} ชื่อ ${memberData.fullname}`);
   return newMember;
 }
 
@@ -425,12 +462,14 @@ export function updateMember(updatedMember) {
   const index = members.findIndex(m => m.id === updatedMember.id);
   if (index !== -1) {
     const status = calculateMemberStatus(updatedMember.expiryDate);
+    const oldMember = members[index];
     members[index] = {
       ...members[index],
       ...updatedMember,
       status: status
     };
     saveMembers(members);
+    addAuditLog('แก้ไขสมาชิก', `แก้ไขข้อมูลสมาชิก รหัส ${updatedMember.id} จากชื่อ ${oldMember.fullname} -> ${updatedMember.fullname} และวันหมดอายุ ${oldMember.expiryDate} -> ${updatedMember.expiryDate}`);
     return true;
   }
   return false;
@@ -438,9 +477,13 @@ export function updateMember(updatedMember) {
 
 export function deleteMember(id) {
   const members = getMembers();
+  const deleted = members.find(m => m.id === id);
   const filtered = members.filter(m => m.id !== id);
   if (members.length !== filtered.length) {
     saveMembers(filtered);
+    if (deleted) {
+      addAuditLog('ลบสมาชิก', `ทำการลบประวัติสมาชิก รหัส ${id} ชื่อ ${deleted.fullname} ออกจากระบบ`);
+    }
     return true;
   }
   return false;
@@ -487,6 +530,9 @@ export function addTransaction(memberId, planId, amount, paymentMethod) {
   
   transactions.unshift(newTx);
   saveTransactions(transactions);
+  if (member && plan) {
+    addAuditLog('ต่ออายุสมาชิก', `ทำธุรกรรมต่ออายุสมาชิก รหัส ${memberId} (${member.fullname}) ด้วยแผน ${plan.name} ยอดชำระ ฿${Number(amount).toLocaleString()} (${paymentMethod})`);
+  }
   return newTx;
 }
 
@@ -522,6 +568,8 @@ export function addShopSale(items, total, paymentMethod) {
 
   sales.unshift(newSale);
   saveShopSales(sales);
+  const itemsSummary = items.map(it => `${it.name} x ${it.qty}`).join(', ');
+  addAuditLog('ขายเครื่องดื่ม', `ขายสินค้าหน้าร้าน: ${itemsSummary} ยอดชำระ ฿${Number(total).toLocaleString()} (${paymentMethod})`);
   return newSale;
 }
 
@@ -573,6 +621,7 @@ export function checkInMember(memberIdOrCode) {
 
   checkins.unshift(newCheckin);
   saveCheckins(checkins);
+  addAuditLog('เช็กอินเข้ายิม', `เช็กอินสมาชิก รหัส ${member.id} ชื่อ ${member.fullname} (สถานะ: ${status === 'active' ? 'ผ่าน' : status === 'warning' ? 'ใกล้หมดอายุ' : 'หมดอายุ'})`);
 
   return {
     success: true,
@@ -634,6 +683,7 @@ export function sellWalkInDaily(fullname, amount, paymentMethod) {
 
   // 3. ทำการเช็กอินเข้าใช้ยิมทันที
   const checkinResult = checkInMember(walkinId);
+  addAuditLog('ออกตั๋วรายวัน', `ออกตั๋ว Walk-in รายวัน ให้กับคุณ ${name} ยอดชำระ ฿${Number(amount).toLocaleString()} (${paymentMethod})`);
 
   return {
     member: newMember,
@@ -692,5 +742,83 @@ export function archiveDailySummary(dateStr) {
   }
 
   saveDailyArchives(archives);
+  addAuditLog('ปิดยอดบัญชี', `ทำการปิดยอดบัญชีสรุปประจำวันสำหรับวันที่ ${dateStr} ยอดรวมรายรับ ฿${closedData.totalRevenue.toLocaleString()}`);
   return closedData;
+}
+
+// ----------------- USER AUTHENTICATION & AUDIT LOGS -----------------
+let activeUser = null; // เซสชันผู้ใช้ปัจจุบันในตัวแอป
+
+export function getCurrentUser() {
+  if (!activeUser) {
+    const cached = sessionStorage.getItem('gm_current_user');
+    if (cached) {
+      activeUser = JSON.parse(cached);
+    }
+  }
+  return activeUser;
+}
+
+export function setCurrentUser(user) {
+  activeUser = user;
+  if (user) {
+    sessionStorage.setItem('gm_current_user', JSON.stringify(user));
+  } else {
+    sessionStorage.removeItem('gm_current_user');
+  }
+}
+
+export function logoutUser() {
+  if (activeUser) {
+    addAuditLog('ออกจากระบบ', `ผู้ใช้ ${activeUser.name} ลงชื่อออกจากระบบการทำงาน`);
+  }
+  setCurrentUser(null);
+}
+
+export function verifyPin(pin) {
+  const users = JSON.parse(localStorage.getItem('gm_users')) || INITIAL_USERS;
+  const user = users.find(u => u.pin === pin);
+  if (user) {
+    setCurrentUser(user);
+    addAuditLog('เข้าสู่ระบบ', `ผู้ใช้ ${user.name} ลงชื่อเข้าทำงานในเครื่องด้วยรหัส PIN สำเร็จ`);
+    return user;
+  }
+  return null;
+}
+
+export function getAuditLogs() {
+  initializeData();
+  return JSON.parse(localStorage.getItem('gm_audit_logs')) || [];
+}
+
+export function saveAuditLogs(logs) {
+  localStorage.setItem('gm_audit_logs', JSON.stringify(logs));
+  syncToCloud('audit_logs', logs);
+}
+
+export function addAuditLog(action, details) {
+  const logs = getAuditLogs();
+  const user = getCurrentUser();
+  const now = getGymTodayDate();
+  
+  const timeStr = now.getFullYear() + '-' + 
+                  String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(now.getDate()).padStart(2, '0') + ' ' + 
+                  String(now.getHours()).padStart(2, '0') + ':' + 
+                  String(now.getMinutes()).padStart(2, '0') + ':' + 
+                  String(now.getSeconds()).padStart(2, '0');
+
+  const logId = 'LOG-' + (1000 + logs.length + 1);
+  const newLog = {
+    id: logId,
+    timestamp: timeStr,
+    userId: user ? user.id : 'system',
+    userName: user ? user.name : 'ระบบหลัก',
+    action: action,
+    details: details
+  };
+
+  logs.unshift(newLog); // เอาเหตุการณ์ล่าสุดขึ้นก่อน
+  saveAuditLogs(logs);
+  return newLog;
 }

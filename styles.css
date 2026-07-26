@@ -1670,4 +1670,106 @@ body {
   flex-wrap: wrap;
 }
 
+/* ==================== PIN KEYPAD & LOGIN STYLING ==================== */
+.numpad-btn {
+  background-color: var(--bg-body);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: var(--font-eng);
+  font-size: 24px;
+  font-weight: 600;
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.numpad-btn:hover {
+  background-color: var(--accent-orange);
+  color: #fff;
+  border-color: var(--accent-orange);
+  transform: scale(1.08);
+  box-shadow: var(--shadow-neon);
+}
+
+.numpad-btn:active {
+  transform: scale(0.95);
+  filter: brightness(0.9);
+}
+
+.numpad-btn.numpad-action {
+  font-family: var(--font-thai);
+  font-size: 15px;
+}
+
+.numpad-btn.numpad-action:hover {
+  background-color: var(--accent-orange);
+  color: #fff;
+  border-color: var(--accent-orange);
+}
+
+#pin-clear-btn:hover {
+  background-color: var(--color-danger) !important;
+  border-color: var(--color-danger) !important;
+  color: #fff !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4) !important;
+}
+
+.pin-dot.active {
+  background-color: var(--accent-orange) !important;
+  border-color: var(--accent-orange) !important;
+  box-shadow: var(--shadow-neon) !important;
+  transform: scale(1.2);
+}
+
+.pin-dot.error {
+  background-color: var(--color-danger) !important;
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6) !important;
+}
+
+.pin-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+/* User account styles for log audits */
+.audit-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.audit-badge.owner {
+  background-color: rgba(212, 175, 55, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.audit-badge.staff {
+  background-color: rgba(255, 95, 31, 0.15);
+  color: var(--accent-orange);
+  border: 1px solid rgba(255, 95, 31, 0.3);
+}
+
+.audit-badge.system {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
 

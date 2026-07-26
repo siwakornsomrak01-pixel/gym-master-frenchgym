@@ -91,45 +91,60 @@ function refreshIcons() {
 }
 
 // ----------------- CONTROL ROLE-BASED SYSTEM -----------------
+// ----------------- CONTROL ROLE-BASED SYSTEM -----------------
 function updateRoleViews() {
-  const roleSelect = document.getElementById('role-toggle-select');
-  currentRole = roleSelect.value;
+  const user = DB.getCurrentUser();
+  if (!user) return;
+
+  currentRole = user.role;
 
   const navDashboard = document.getElementById('nav-item-dashboard');
   const navBilling = document.getElementById('nav-item-billing');
   const navTraffic = document.getElementById('nav-item-traffic');
+  const navAudit = document.getElementById('nav-item-audit');
   
   // แผงควบคุมสมุดบัญชีปิดยอดของเจ้าของยิม
   const dailyReportSection = document.getElementById('owner-daily-report-section');
-
-  const wrapper = document.querySelector('.role-selector-wrapper');
+  const userWrapper = document.getElementById('header-user-wrapper');
   
+  if (userWrapper) {
+    if (currentRole === 'staff') {
+      userWrapper.style.borderColor = 'var(--accent-orange)';
+      userWrapper.querySelector('i').style.color = 'var(--accent-orange)';
+    } else {
+      userWrapper.style.borderColor = 'var(--accent-gold)';
+      userWrapper.querySelector('i').style.color = 'var(--accent-gold)';
+    }
+  }
+
   if (currentRole === 'staff') {
-    wrapper.style.borderColor = 'var(--accent-orange)';
-    wrapper.querySelector('i').style.color = 'var(--accent-orange)';
-    
-    navDashboard.style.display = 'none';
-    navBilling.style.display = 'none';
-    navTraffic.style.display = 'block';
+    if (navDashboard) navDashboard.style.display = 'none';
+    if (navBilling) navBilling.style.display = 'none';
+    if (navAudit) navAudit.style.display = 'none';
+    if (navTraffic) navTraffic.style.display = 'block';
     
     if (dailyReportSection) dailyReportSection.style.display = 'none';
+
+    // ซ่อนปุ่มลบประวัติความเสี่ยงสำหรับพนักงาน
+    document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = 'none');
 
     const activeLink = document.querySelector('.sidebar .nav-link.active');
     if (activeLink) {
       const activeView = activeLink.dataset.view;
-      if (activeView === 'dashboard' || activeView === 'billing') {
+      if (activeView === 'dashboard' || activeView === 'billing' || activeView === 'audit') {
         navigateToView('checkin');
       }
     }
   } else {
-    wrapper.style.borderColor = 'var(--accent-gold)';
-    wrapper.querySelector('i').style.color = 'var(--accent-gold)';
-
-    navDashboard.style.display = 'block';
-    navBilling.style.display = 'block';
-    navTraffic.style.display = 'block';
+    if (navDashboard) navDashboard.style.display = 'block';
+    if (navBilling) navBilling.style.display = 'block';
+    if (navAudit) navAudit.style.display = 'block';
+    if (navTraffic) navTraffic.style.display = 'block';
     
     if (dailyReportSection) dailyReportSection.style.display = 'block';
+    
+    // แสดงปุ่มลบสำหรับเจ้าของยิม
+    document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = 'flex');
   }
 }
 
@@ -171,7 +186,74 @@ function loadViewData(viewId) {
     renderShopView();
   } else if (viewId === 'billing') {
     renderBillingAndPlans();
+  } else if (viewId === 'audit') {
+    renderAuditLogs();
   }
+}
+
+// ----------------- AUDIT LOGS VIEW CONTROLLER -----------------
+function renderAuditLogs() {
+  const auditTableBody = document.getElementById('audit-table-body');
+  if (!auditTableBody) return;
+
+  const logs = DB.getAuditLogs();
+  const searchVal = document.getElementById('audit-search-input')?.value.toLowerCase() || '';
+  const filterAction = document.getElementById('audit-filter-action')?.value || '';
+
+  const filteredLogs = logs.filter(log => {
+    // 1. ค้นหาความตรงตามคำค้น
+    const matchSearch = log.userName.toLowerCase().includes(searchVal) ||
+                        log.action.toLowerCase().includes(searchVal) ||
+                        log.details.toLowerCase().includes(searchVal) ||
+                        log.id.toLowerCase().includes(searchVal);
+    
+    // 2. คัดกรองตามหมวดหมู่กิจกรรม
+    const matchAction = !filterAction || log.action === filterAction;
+
+    return matchSearch && matchAction;
+  });
+
+  auditTableBody.innerHTML = '';
+
+  if (filteredLogs.length === 0) {
+    auditTableBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-secondary);">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <i data-lucide="shield-alert" style="width: 32px; height: 32px; color: var(--text-secondary);"></i>
+            <p>ไม่พบรายการประวัติประมวลผลที่ต้องการค้นหา</p>
+          </div>
+        </td>
+      </tr>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  filteredLogs.forEach(log => {
+    const tr = document.createElement('tr');
+    
+    // สร้าง Badge สำหรับผู้ปฏิบัติงานตามสิทธิ์
+    let badgeClass = 'system';
+    if (log.userName.includes('Owner')) {
+      badgeClass = 'owner';
+    } else if (log.userName.includes('Staff')) {
+      badgeClass = 'staff';
+    }
+
+    tr.innerHTML = `
+      <td style="font-family: var(--font-eng); font-weight: 600; color: var(--text-secondary);">${log.id}</td>
+      <td style="font-family: var(--font-eng); font-size: 13px;">${log.timestamp}</td>
+      <td>
+        <span class="audit-badge ${badgeClass}">${log.userName}</span>
+      </td>
+      <td style="font-weight: 500; color: var(--text-primary);">${log.action}</td>
+      <td style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">${log.details}</td>
+    `;
+    auditTableBody.appendChild(tr);
+  });
+
+  lucide.createIcons();
 }
 
 // ----------------- 1. DASHBOARD VIEW CONTROLLER -----------------
@@ -381,7 +463,7 @@ function renderMembersList() {
         <div class="action-buttons">
           <button class="action-btn view" data-id="${m.id}" title="ดูรายละเอียด"><i data-lucide="eye"></i></button>
           <button class="action-btn edit" data-id="${m.id}" title="แก้ไขข้อมูล"><i data-lucide="edit-3"></i></button>
-          <button class="action-btn delete" data-id="${m.id}" title="ลบสมาชิก"><i data-lucide="trash-2"></i></button>
+          ${currentRole === 'owner' ? `<button class="action-btn delete" data-id="${m.id}" title="ลบสมาชิก"><i data-lucide="trash-2"></i></button>` : ''}
         </div>
       </td>
     `;
@@ -1380,18 +1462,136 @@ document.addEventListener('DOMContentLoaded', () => {
     dateEl.textContent = `วันที่: ${today.toLocaleDateString('th-TH', options)}`;
   }
 
-  // ดักการสลับบทบาทผู้ใช้
-  const roleSelect = document.getElementById('role-toggle-select');
-  roleSelect.addEventListener('change', () => {
-    updateRoleViews();
-    if (currentRole === 'staff') {
-      navigateToView('checkin');
+  // ----------------- PIN LOGIN SYSTEM LOGIC -----------------
+  const pinModal = document.getElementById('pin-login-modal');
+  const pinMessage = document.getElementById('pin-login-message');
+  const switchUserBtn = document.getElementById('header-switch-user-btn');
+  const headerUserName = document.getElementById('header-user-name');
+  
+  let currentPinInput = '';
+
+  function checkLoginState() {
+    const user = DB.getCurrentUser();
+    if (user) {
+      if (pinModal) pinModal.classList.remove('active');
+      if (headerUserName) headerUserName.textContent = user.name;
+      updateRoleViews();
+      
+      const activeLink = document.querySelector('.sidebar .nav-link.active');
+      if (!activeLink) {
+        if (user.role === 'owner') {
+          navigateToView('dashboard');
+        } else {
+          navigateToView('checkin');
+        }
+      } else {
+        navigateToView(activeLink.dataset.view);
+      }
     } else {
-      navigateToView('dashboard');
+      if (pinModal) pinModal.classList.add('active');
+      if (headerUserName) headerUserName.textContent = '-';
+      resetPinInput();
     }
+  }
+
+  function resetPinInput() {
+    currentPinInput = '';
+    updatePinDots();
+    if (pinMessage) {
+      pinMessage.textContent = '';
+      pinMessage.style.color = 'var(--text-secondary)';
+    }
+    const modalContent = pinModal?.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.classList.remove('pin-shake');
+    }
+  }
+
+  function updatePinDots() {
+    for (let i = 1; i <= 4; i++) {
+      const dot = document.getElementById(`pin-dot-${i}`);
+      if (dot) {
+        dot.className = 'pin-dot';
+        if (i <= currentPinInput.length) {
+          dot.classList.add('active');
+        }
+      }
+    }
+  }
+
+  document.querySelectorAll('.numpad-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.val;
+      const modalContent = pinModal?.querySelector('.modal-content');
+
+      if (val === 'C') {
+        resetPinInput();
+      } else if (val === 'B') {
+        if (currentPinInput.length > 0) {
+          currentPinInput = currentPinInput.slice(0, -1);
+          updatePinDots();
+        }
+      } else if (currentPinInput.length < 4) {
+        currentPinInput += val;
+        updatePinDots();
+
+        if (currentPinInput.length === 4) {
+          const matchedUser = DB.verifyPin(currentPinInput);
+          if (matchedUser) {
+            if (pinMessage) {
+              pinMessage.textContent = '🎉 เข้าสู่ระบบสำเร็จ...';
+              pinMessage.style.color = 'var(--color-success)';
+            }
+            setTimeout(() => {
+              if (pinModal) pinModal.classList.remove('active');
+              if (headerUserName) headerUserName.textContent = matchedUser.name;
+              updateRoleViews();
+              if (matchedUser.role === 'owner') {
+                navigateToView('dashboard');
+              } else {
+                navigateToView('checkin');
+              }
+              resetPinInput();
+            }, 600);
+          } else {
+            if (pinMessage) {
+              pinMessage.textContent = '❌ รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่';
+              pinMessage.style.color = 'var(--color-danger)';
+            }
+            if (modalContent) {
+              modalContent.classList.add('pin-shake');
+            }
+            for (let i = 1; i <= 4; i++) {
+              document.getElementById(`pin-dot-${i}`)?.classList.add('error');
+            }
+            setTimeout(() => {
+              resetPinInput();
+            }, 800);
+          }
+        }
+      }
+    });
   });
 
-  updateRoleViews();
+  if (switchUserBtn) {
+    switchUserBtn.addEventListener('click', () => {
+      DB.logoutUser();
+      checkLoginState();
+    });
+  }
+
+  const auditSearchInput = document.getElementById('audit-search-input');
+  const auditFilterAction = document.getElementById('audit-filter-action');
+
+  if (auditSearchInput) {
+    auditSearchInput.addEventListener('input', renderAuditLogs);
+  }
+  if (auditFilterAction) {
+    auditFilterAction.addEventListener('change', renderAuditLogs);
+  }
+
+  // เรียกใช้ตรวจจับตอนหน้าเว็บโหลด
+  checkLoginState();
 
   // ดักฟิลเตอร์การแสดงผลกราฟแดชบอร์ดการเงิน
   document.querySelectorAll('.chart-filter-btn').forEach(btn => {
