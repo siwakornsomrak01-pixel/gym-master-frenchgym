@@ -108,12 +108,13 @@ function updateRoleViews() {
   const userWrapper = document.getElementById('header-user-wrapper');
   
   if (userWrapper) {
+    const userIcon = userWrapper.querySelector('.lucide') || userWrapper.querySelector('i');
     if (currentRole === 'staff') {
       userWrapper.style.borderColor = 'var(--accent-orange)';
-      userWrapper.querySelector('i').style.color = 'var(--accent-orange)';
+      if (userIcon) userIcon.style.color = 'var(--accent-orange)';
     } else {
       userWrapper.style.borderColor = 'var(--accent-gold)';
-      userWrapper.querySelector('i').style.color = 'var(--accent-gold)';
+      if (userIcon) userIcon.style.color = 'var(--accent-gold)';
     }
   }
 
