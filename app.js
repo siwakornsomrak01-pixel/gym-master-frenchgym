@@ -201,6 +201,41 @@ function renderAuditLogs() {
   const searchVal = document.getElementById('audit-search-input')?.value.toLowerCase() || '';
   const filterAction = document.getElementById('audit-filter-action')?.value || '';
 
+  // อัปเดตข้อมูลวิเคราะห์ระบบเชื่อมต่อคลาวด์
+  const connStatusEl = document.getElementById('diagnostic-conn-status');
+  const localCountEl = document.getElementById('diagnostic-local-count');
+  const cloudCountEl = document.getElementById('diagnostic-cloud-count');
+  
+  if (connStatusEl) {
+    const isConnected = DB.getFirebaseConnectedStatus();
+    const lastErr = DB.getLastSyncError();
+    if (lastErr) {
+      connStatusEl.innerHTML = `<span style="color: var(--color-danger); font-weight: 600;">❌ ล้มเหลว (${lastErr})</span>`;
+    } else if (isConnected) {
+      connStatusEl.innerHTML = `<span style="color: var(--color-success); font-weight: 600;">🟢 เชื่อมต่อคลาวด์สำเร็จ (Online)</span>`;
+    } else {
+      connStatusEl.innerHTML = `<span style="color: var(--accent-orange); font-weight: 600;">🟡 โหมดออฟไลน์ (Offline)</span>`;
+    }
+  }
+  
+  if (localCountEl) {
+    localCountEl.textContent = logs.length;
+  }
+  
+  if (cloudCountEl) {
+    if (DB.getFirebaseConnectedStatus()) {
+      DB.getCloudCollectionCount('audit_logs').then(count => {
+        if (count !== null) {
+          cloudCountEl.textContent = count;
+        } else {
+          cloudCountEl.textContent = 'ขัดข้อง';
+        }
+      });
+    } else {
+      cloudCountEl.textContent = 'ปิดการทำงาน';
+    }
+  }
+
   const filteredLogs = logs.filter(log => {
     if (!log) return false;
     const logId = (log.id || '').toLowerCase();
@@ -1601,6 +1636,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (auditFilterAction) {
     auditFilterAction.addEventListener('change', renderAuditLogs);
+  }
+
+  const syncBtn = document.getElementById('diagnostic-sync-btn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = '<i data-lucide="refresh-cw" style="width: 12px; height: 12px; margin-right: 4px; display: inline-block; vertical-align: middle;"></i>กำลังซิงก์...';
+      refreshIcons();
+      
+      DB.clearLastSyncError();
+      await DB.syncFromCloud();
+      
+      renderAuditLogs();
+      
+      syncBtn.disabled = false;
+      syncBtn.innerHTML = '<i data-lucide="refresh-cw" style="width: 12px; height: 12px; margin-right: 4px; display: inline-block; vertical-align: middle;"></i>ซิงก์ด่วน';
+      refreshIcons();
+    });
   }
 
   // เรียกใช้ตรวจจับตอนหน้าเว็บโหลด

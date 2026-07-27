@@ -20,6 +20,38 @@ if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId && fireb
   console.warn('⚠️ [Firebase] ยังไม่ได้ระบุ Firebase Config ใน firebase-config.js กำลังรันโหมดออฟไลน์ (LocalStorage) เท่านั้น');
 }
 
+let lastSyncError = null;
+
+export function getFirebaseConnectedStatus() {
+  return isFirebaseConnected;
+}
+
+export function getLastSyncError() {
+  return lastSyncError;
+}
+
+export function clearLastSyncError() {
+  lastSyncError = null;
+}
+
+export async function getCloudCollectionCount(collectionName) {
+  if (!isFirebaseConnected || !db) return null;
+  try {
+    const docRef = doc(db, 'gym_data', collectionName);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const cloudData = docSnap.data().data;
+      if (cloudData && Array.isArray(cloudData)) {
+        return cloudData.length;
+      }
+    }
+    return 0;
+  } catch (err) {
+    console.error('Error getting cloud count:', err);
+    return null;
+  }
+}
+
 // ฟังก์ชันส่งกระจายข้อมูลจาก LocalStorage ขึ้น Cloud Firestore
 async function syncToCloud(collectionName, data) {
   if (!isFirebaseConnected || !db) return;
@@ -68,6 +100,7 @@ export async function syncFromCloud() {
       }
     } catch (err) {
       console.error(`❌ [Firebase] ซิงก์ลงล้มเหลวสำหรับ ${col.name}:`, err);
+      lastSyncError = err.message || String(err);
     }
   }
 }
