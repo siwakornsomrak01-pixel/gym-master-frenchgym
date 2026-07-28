@@ -105,6 +105,7 @@ function updateRoleViews() {
   
   // แผงควบคุมสมุดบัญชีปิดยอดของเจ้าของยิม
   const dailyReportSection = document.getElementById('owner-daily-report-section');
+  const qrPortalSection = document.getElementById('owner-qr-portal-section');
   const userWrapper = document.getElementById('header-user-wrapper');
   
   if (userWrapper) {
@@ -125,6 +126,7 @@ function updateRoleViews() {
     if (navTraffic) navTraffic.style.display = 'block';
     
     if (dailyReportSection) dailyReportSection.style.display = 'none';
+    if (qrPortalSection) qrPortalSection.style.display = 'none';
 
     // ซ่อนปุ่มลบประวัติความเสี่ยงสำหรับพนักงาน
     document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = 'none');
@@ -143,6 +145,7 @@ function updateRoleViews() {
     if (navTraffic) navTraffic.style.display = 'block';
     
     if (dailyReportSection) dailyReportSection.style.display = 'block';
+    if (qrPortalSection) qrPortalSection.style.display = 'block';
     
     // แสดงปุ่มลบสำหรับเจ้าของยิม
     document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = 'flex');
