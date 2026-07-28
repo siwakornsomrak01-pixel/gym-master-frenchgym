@@ -375,6 +375,16 @@ function renderDashboard() {
     });
   }
 
+  // ตั้งค่าแสดงผลลิงก์และ QR Code บนคอนโซล Owner
+  const qrImg = document.getElementById('owner-portal-qr-img');
+  const urlText = document.getElementById('owner-portal-url-text');
+  
+  if (qrImg && urlText) {
+    const portalUrl = window.location.origin + window.location.pathname + '?portal=true';
+    urlText.textContent = portalUrl;
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(portalUrl)}`;
+  }
+
   renderRevenueChart(membershipRev, shopRev);
   refreshIcons();
 }
@@ -1518,7 +1528,28 @@ document.addEventListener('DOMContentLoaded', () => {
   
   let currentPinInput = '';
 
+  function showPortalView() {
+    if (pinModal) pinModal.classList.remove('active');
+    document.querySelectorAll('.views-container .view-panel').forEach(panel => {
+      panel.classList.remove('active');
+    });
+    document.querySelector('.app-container').classList.add('portal-mode');
+    
+    const portalPanel = document.getElementById('member-portal-view');
+    if (portalPanel) {
+      portalPanel.classList.add('active');
+    }
+  }
+
   function checkLoginState() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPortalMode = urlParams.get('portal') === 'true';
+
+    if (isPortalMode) {
+      showPortalView();
+      return;
+    }
+
     const user = DB.getCurrentUser();
     if (user) {
       if (pinModal) pinModal.classList.remove('active');
@@ -1798,5 +1829,184 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  navigateToView('checkin');
+  // ----------------- MEMBER SELF-SERVICE PORTAL CONTROLLER -----------------
+  const portalQueryForm = document.getElementById('portal-query-form');
+  const portalMemberQuery = document.getElementById('portal-member-query');
+  const portalErrorMsg = document.getElementById('portal-error-msg');
+  const portalSearchPanel = document.getElementById('portal-search-panel');
+  const portalResultPanel = document.getElementById('portal-result-panel');
+  
+  if (portalQueryForm) {
+    portalQueryForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (portalErrorMsg) portalErrorMsg.textContent = '';
+      
+      const query = portalMemberQuery.value;
+      const res = DB.findMemberForPortal(query);
+      
+      if (!res) {
+        if (portalErrorMsg) {
+          portalErrorMsg.textContent = '❌ ไม่พบข้อมูลสมาชิก หรือหมายเลขโทรศัพท์นี้ในระบบ';
+        }
+        return;
+      }
+      
+      // Populate results
+      document.getElementById('portal-res-name').textContent = res.fullname;
+      document.getElementById('portal-res-id').textContent = res.id;
+      document.getElementById('portal-res-phone').textContent = res.phone;
+      document.getElementById('portal-res-plan').textContent = res.planName;
+      
+      // Update status indicators
+      const statusCard = document.getElementById('portal-status-card');
+      const statusIcon = document.getElementById('portal-status-icon');
+      const statusTitle = document.getElementById('portal-status-title');
+      const statusSubtitle = document.getElementById('portal-status-subtitle');
+      
+      // Clean previous classes
+      statusCard.className = 'status-indicator-card';
+      
+      let iconName = 'check-circle';
+      let title = 'ใช้งานได้ปกติ (Active)';
+      let subtitle = '';
+      
+      if (res.status === 'active') {
+        statusCard.classList.add('active');
+        iconName = 'check-circle';
+        title = '🟢 ใช้งานได้ปกติ (Active)';
+        subtitle = `สามารถเข้าใช้บริการยิมได้ตามปกติ (เหลืออีก ${res.daysRemaining} วัน)`;
+      } else if (res.status === 'warning') {
+        statusCard.classList.add('warning');
+        iconName = 'alert-triangle';
+        title = '🟡 ใกล้หมดอายุ (Warning)';
+        subtitle = `สมาชิกของท่านเหลือเวลาอีก ${res.daysRemaining} วัน กรุณาติดต่อเคาน์เตอร์`;
+      } else {
+        statusCard.classList.add('expired');
+        iconName = 'x-circle';
+        title = '🔴 หมดอายุแล้ว (Expired)';
+        subtitle = `หมดอายุเมื่อวันที่ ${res.expiryDate} กรุณาติดต่อชำระเงินที่เคาน์เตอร์`;
+      }
+      
+      statusTitle.textContent = title;
+      statusSubtitle.textContent = subtitle;
+      statusIcon.innerHTML = `<i data-lucide="${iconName}" style="width: 36px; height: 36px;"></i>`;
+      
+      // Switch panels
+      portalSearchPanel.style.display = 'none';
+      portalResultPanel.style.display = 'block';
+      refreshIcons();
+    });
+  }
+  
+  const portalBackBtn = document.getElementById('portal-back-btn');
+  if (portalBackBtn) {
+    portalBackBtn.addEventListener('click', () => {
+      portalMemberQuery.value = '';
+      if (portalErrorMsg) portalErrorMsg.textContent = '';
+      portalResultPanel.style.display = 'none';
+      portalSearchPanel.style.display = 'block';
+    });
+  }
+
+  // ----------------- OWNER PRINT QR CODE CONTROLLER -----------------
+  const printQrBtn = document.getElementById('print-qr-btn');
+  const downloadQrBtn = document.getElementById('download-qr-btn');
+  
+  if (printQrBtn) {
+    printQrBtn.addEventListener('click', () => {
+      const portalUrl = window.location.origin + window.location.pathname + '?portal=true';
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(portalUrl)}`;
+      
+      const printWindow = window.open('', '_blank', 'width=800,height=900');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>พิมพ์ QR Code สมาชิก - Gym Master</title>
+            <style>
+              body {
+                font-family: 'Inter', 'Prompt', sans-serif;
+                text-align: center;
+                padding: 40px;
+                background-color: #ffffff;
+                color: #1a1a1a;
+              }
+              .poster-card {
+                border: 15px solid #ff5f1f;
+                border-radius: 24px;
+                padding: 40px 20px;
+                max-width: 550px;
+                margin: 0 auto;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+              }
+              .logo {
+                font-size: 32px;
+                font-weight: 800;
+                color: #ff5f1f;
+                margin-bottom: 5px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+              }
+              .subtitle {
+                font-size: 16px;
+                color: #555555;
+                margin-bottom: 30px;
+                font-weight: 500;
+              }
+              .qr-container {
+                background: #ffffff;
+                padding: 20px;
+                border-radius: 16px;
+                display: inline-block;
+                border: 3px solid #ff5f1f;
+                margin-bottom: 30px;
+              }
+              .qr-image {
+                width: 280px;
+                height: 280px;
+                display: block;
+              }
+              .instruction {
+                font-size: 20px;
+                font-weight: 700;
+                color: #ff5f1f;
+                margin-bottom: 8px;
+              }
+              .url-hint {
+                font-size: 13px;
+                color: #777777;
+                font-family: monospace;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="poster-card">
+              <div class="logo">🏋️ Gym Master</div>
+              <div class="subtitle">ระบบบริการตรวจสถานะสมาชิกหน้าร้าน</div>
+              <div class="qr-container">
+                <img class="qr-image" src="\${qrApiUrl}" alt="QR Code">
+              </div>
+              <div class="instruction">สแกนตรวจสอบวันหมดอายุสมาชิกของท่านได้ที่นี่!</div>
+              <div class="url-hint">\${portalUrl}</div>
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(() => window.close(), 500);
+              }
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    });
+  }
+
+  if (downloadQrBtn) {
+    downloadQrBtn.addEventListener('click', () => {
+      const portalUrl = window.location.origin + window.location.pathname + '?portal=true';
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(portalUrl)}`;
+      window.open(qrApiUrl, '_blank');
+    });
+  }
+
 });

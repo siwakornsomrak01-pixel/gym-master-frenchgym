@@ -434,6 +434,42 @@ export function getMembers() {
   return members;
 }
 
+export function findMemberForPortal(query) {
+  if (!query) return null;
+  const searchStr = query.trim().toLowerCase();
+  const members = getMembers() || [];
+  
+  const found = members.find(m => {
+    const idMatch = (m.id || '').toLowerCase() === searchStr;
+    const normPhone = (m.phone || '').replace(/[- ]/g, '');
+    const normQuery = searchStr.replace(/[- ]/g, '');
+    const phoneMatch = normPhone === normQuery && normQuery.length >= 8;
+    return idMatch || phoneMatch;
+  });
+
+  if (!found) return null;
+
+  const maskedPhone = found.phone ? found.phone.replace(/^(\d{3})\d+(\d{4})$/, '$1-xxx-$2') : '-';
+  const plans = getPlans() || [];
+  const plan = plans.find(p => p.id === found.planId);
+  const planName = plan ? plan.name : 'ทั่วไป (General)';
+
+  const today = getGymTodayDate();
+  const expDate = new Date(found.expiryDate);
+  const diffTime = expDate - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return {
+    id: found.id,
+    fullname: found.fullname,
+    phone: maskedPhone,
+    planName: planName,
+    expiryDate: found.expiryDate,
+    status: found.status,
+    daysRemaining: diffDays
+  };
+}
+
 export function saveMembers(members) {
   localStorage.setItem('gm_members', JSON.stringify(members));
   syncToCloud('members', members);

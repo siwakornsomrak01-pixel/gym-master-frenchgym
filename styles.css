@@ -1754,4 +1754,52 @@ body {
   border: 1px solid var(--border-color);
 }
 
+/* ==================== PORTAL SELF-SERVICE MODE ==================== */
+.app-container.portal-mode {
+  flex-direction: column;
+}
+
+.app-container.portal-mode .sidebar {
+  display: none !important;
+}
+
+.app-container.portal-mode .main-content {
+  width: 100% !important;
+  height: 100vh !important;
+}
+
+.app-container.portal-mode .top-header {
+  display: none !important;
+}
+
+.app-container.portal-mode .views-container {
+  padding: 0 !important;
+  height: 100vh !important;
+}
+
+.status-indicator-card {
+  transition: var(--transition-smooth);
+}
+
+.status-indicator-card.active {
+  background-color: rgba(46, 204, 113, 0.05);
+  border-color: rgba(46, 204, 113, 0.3) !important;
+  color: #2ecc71;
+  box-shadow: 0 0 15px rgba(46, 204, 113, 0.1);
+}
+
+.status-indicator-card.warning {
+  background-color: rgba(241, 196, 15, 0.05);
+  border-color: rgba(241, 196, 15, 0.3) !important;
+  color: #f1c40f;
+  box-shadow: 0 0 15px rgba(241, 196, 15, 0.1);
+}
+
+.status-indicator-card.expired {
+  background-color: rgba(231, 76, 60, 0.05);
+  border-color: rgba(231, 76, 60, 0.3) !important;
+  color: #e74c3c;
+  box-shadow: 0 0 15px rgba(231, 76, 60, 0.1);
+}
+
 
