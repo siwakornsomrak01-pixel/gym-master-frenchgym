@@ -508,7 +508,10 @@ function renderMembersList() {
         <div class="table-user-info">
           <div class="member-avatar" style="background: ${m.avatarGradient}">${initials}</div>
           <div>
-            <div class="member-fullname">${m.fullname}</div>
+            <div class="member-fullname">
+              ${m.fullname}
+              ${m.lineUserId ? `<span class="line-status-badge" title="LINE ID: ${m.lineUserId}"><i data-lucide="shield-check" style="width: 10px; height: 10px; display: inline-block; vertical-align: middle; margin-right: 2px;"></i>LINE ผูกแล้ว</span>` : ''}
+            </div>
             <div class="member-subtext">เพศ: ${m.gender} | สมัครเมื่อ: ${m.joinDate}</div>
           </div>
         </div>
@@ -570,6 +573,10 @@ function openMemberFormModal(id = null) {
   document.getElementById('form-special-input-wrapper').classList.remove('active');
   document.getElementById('form-special-price').required = false;
 
+  const lineStatusContainer = document.getElementById('modal-line-status-container');
+  const btnUnlinkLine = document.getElementById('btn-unlink-line');
+  if (lineStatusContainer) lineStatusContainer.style.display = 'none';
+
   if (id) {
     title.textContent = 'แก้ไขข้อมูลสมาชิก';
     const members = DB.getMembers();
@@ -583,6 +590,20 @@ function openMemberFormModal(id = null) {
       document.getElementById('form-plan').value = m.planId;
       document.getElementById('form-joindate').value = m.joinDate;
       document.getElementById('form-expirydate').value = m.expiryDate;
+
+      if (m.lineUserId && lineStatusContainer && btnUnlinkLine) {
+        lineStatusContainer.style.display = 'flex';
+        const newUnlinkBtn = btnUnlinkLine.cloneNode(true);
+        btnUnlinkLine.parentNode.replaceChild(newUnlinkBtn, btnUnlinkLine);
+        newUnlinkBtn.addEventListener('click', () => {
+          if (confirm(`คุณต้องการปลดล็อกการเชื่อมต่อ LINE ของ "${m.fullname}" ใช่หรือไม่?`)) {
+            DB.unlinkMemberLine(m.id);
+            lineStatusContainer.style.display = 'none';
+            renderMembersList();
+            alert('ปลดการเชื่อมต่อ LINE สำเร็จ!');
+          }
+        });
+      }
     }
   } else {
     title.textContent = 'ลงทะเบียนสมาชิกใหม่';
@@ -1530,6 +1551,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const headerUserName = document.getElementById('header-user-name');
   
   let currentPinInput = '';
+  let portalLineProfile = null;
 
   function showPortalView() {
     if (pinModal) pinModal.classList.remove('active');
@@ -1541,6 +1563,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const portalPanel = document.getElementById('member-portal-view');
     if (portalPanel) {
       portalPanel.classList.add('active');
+    }
+
+    // โหลดและเชื่อมต่อ LINE LIFF ถ้ามีการตั้งค่า LIFF ID
+    const config = DB.getSystemConfig();
+    const liffId = config.liffId;
+    const portalErrorMsg = document.getElementById('portal-error-msg');
+    
+    if (liffId && typeof liff !== 'undefined') {
+      if (portalErrorMsg) {
+        portalErrorMsg.innerHTML = '<span style="color: var(--accent-orange);">⏳ กำลังเชื่อมโยง LINE Secure Login...</span>';
+      }
+      
+      liff.init({ liffId: liffId })
+        .then(() => {
+          if (!liff.isLoggedIn()) {
+            liff.login();
+          } else {
+            liff.getProfile()
+              .then(profile => {
+                portalLineProfile = profile;
+                if (portalErrorMsg) {
+                  portalErrorMsg.innerHTML = `<span style="color: #2ecc71; font-weight: 600;"><i data-lucide="shield-check" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>LINE: ${profile.displayName} (เชื่อมต่อปลอดภัย)</span>`;
+                  refreshIcons();
+                }
+              })
+              .catch(err => {
+                console.error('Error fetching LINE profile:', err);
+                if (portalErrorMsg) {
+                  portalErrorMsg.textContent = '❌ ไม่สามารถดึงโปรไฟล์ LINE: ' + err.message;
+                }
+              });
+          }
+        })
+        .catch(err => {
+          console.error('LIFF initialization failed:', err);
+          if (portalErrorMsg) {
+            portalErrorMsg.textContent = '❌ โหลดระบบล็อก LINE ล้มเหลว (ตรวจสอบ LIFF ID)';
+          }
+        });
+    } else {
+      if (portalErrorMsg) {
+        portalErrorMsg.innerHTML = '<span style="color: var(--text-muted);"><i data-lucide="info" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>โหมดสาธารณะ (ยังไม่ได้ตั้งค่าเชื่อมต่อ LINE)</span>';
+        refreshIcons();
+      }
     }
   }
 
@@ -1853,6 +1919,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return;
       }
+
+      // ตรวจเช็กความปลอดภัย LINE LIFF
+      if (portalLineProfile) {
+        const currentLineId = portalLineProfile.userId;
+        
+        if (!res.lineUserId) {
+          // กระบวนการผูกบัญชีครั้งแรก (Binding)
+          const confirmBind = confirm(`คุณต้องการผูกบัญชี LINE (${portalLineProfile.displayName}) เข้ากับโปรไฟล์สมาชิก ${res.fullname} หรือไม่?\n\n*หมายเหตุ: เมื่อผูกแล้ว บัญชี LINE นี้จะถูกล็อกไว้กับประวัตินี้เพื่อความปลอดภัย ป้องกันคนอื่นสวมสิทธิ์ด้วยเบอร์โทรของคุณ`);
+          if (confirmBind) {
+            DB.linkMemberLine(res.id, currentLineId);
+            res.lineUserId = currentLineId;
+          } else {
+            if (portalErrorMsg) {
+              portalErrorMsg.textContent = '❌ การดำเนินการถูกยกเลิก (ต้องผูกบัญชี LINE ก่อนตรวจสถานะ)';
+            }
+            return;
+          }
+        } else if (res.lineUserId !== currentLineId) {
+          // บล็อกการเข้าถึงเนื่องจาก LINE ไม่ตรงกัน (Security Blocked)
+          if (portalErrorMsg) {
+            portalErrorMsg.innerHTML = '<span style="color: var(--color-danger); font-weight: bold;">❌ ตรวจสอบความปลอดภัยล้มเหลว: ข้อมูลสมาชิกนี้ผูกไว้กับบัญชี LINE อื่นแล้ว ไม่สามารถใช้เบอร์เพื่อนได้!</span>';
+          }
+          return;
+        }
+      }
       
       // Populate results
       document.getElementById('portal-res-name').textContent = res.fullname;
@@ -2009,6 +2100,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const portalUrl = window.location.origin + window.location.pathname + '?portal=true';
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(portalUrl)}`;
       window.open(qrApiUrl, '_blank');
+    });
+  }
+
+  // ----------------- OWNER LINE CONFIG CONTROLLER -----------------
+  const lineConfigForm = document.getElementById('owner-line-config-form');
+  const liffIdInput = document.getElementById('owner-liff-id');
+  
+  if (liffIdInput) {
+    const config = DB.getSystemConfig();
+    liffIdInput.value = config.liffId || '';
+  }
+  
+  if (lineConfigForm) {
+    lineConfigForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const liffId = liffIdInput.value.trim();
+      DB.saveSystemConfig({ liffId });
+      alert('บันทึกการตั้งค่า LINE LIFF ID เรียบร้อยแล้ว!');
+      
+      // Re-render dashboard QR text/link as well
+      const urlText = document.getElementById('owner-portal-url-text');
+      const qrImg = document.getElementById('owner-portal-qr-img');
+      if (urlText && qrImg) {
+        const portalUrl = window.location.origin + window.location.pathname + '?portal=true';
+        urlText.textContent = portalUrl;
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(portalUrl)}`;
+      }
     });
   }
 

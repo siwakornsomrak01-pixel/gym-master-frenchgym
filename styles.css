@@ -1802,4 +1802,19 @@ body {
   box-shadow: 0 0 15px rgba(231, 76, 60, 0.1);
 }
 
+.line-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+  text-transform: uppercase;
+}
+
 

@@ -77,7 +77,8 @@ export async function syncFromCloud() {
     { name: 'checkins', storageKey: 'gm_checkins' },
     { name: 'daily_archives', storageKey: 'gm_daily_archives' },
     { name: 'users', storageKey: 'gm_users' },
-    { name: 'audit_logs', storageKey: 'gm_audit_logs' }
+    { name: 'audit_logs', storageKey: 'gm_audit_logs' },
+    { name: 'config', storageKey: 'gm_config' }
   ];
 
   for (const col of collections) {
@@ -466,7 +467,8 @@ export function findMemberForPortal(query) {
     planName: planName,
     expiryDate: found.expiryDate,
     status: found.status,
-    daysRemaining: diffDays
+    daysRemaining: diffDays,
+    lineUserId: found.lineUserId || null
   };
 }
 
@@ -898,4 +900,46 @@ export function addAuditLog(action, details) {
   logs.unshift(newLog); // เอาเหตุการณ์ล่าสุดขึ้นก่อน
   saveAuditLogs(logs);
   return newLog;
+}
+
+export function getSystemConfig() {
+  initializeData();
+  const configArr = JSON.parse(localStorage.getItem('gm_config')) || [];
+  let config = configArr[0] || { liffId: '' };
+  return config;
+}
+
+export function saveSystemConfig(config) {
+  const configArr = [config];
+  localStorage.setItem('gm_config', JSON.stringify(configArr));
+  syncToCloud('config', configArr);
+}
+
+export function linkMemberLine(memberId, lineUserId) {
+  const members = getMembers();
+  const m = members.find(x => x.id === memberId);
+  if (m) {
+    m.lineUserId = lineUserId;
+    saveMembers(members);
+    
+    // Add audit log
+    addAuditLog('ผูกบัญชี LINE', `ผูกบัญชี LINE กับสมาชิกรหัส ${memberId} (${m.fullname}) สำเร็จ`);
+    return true;
+  }
+  return false;
+}
+
+export function unlinkMemberLine(memberId) {
+  const members = getMembers();
+  const m = members.find(x => x.id === memberId);
+  if (m) {
+    const oldLine = m.lineUserId;
+    m.lineUserId = null;
+    saveMembers(members);
+    
+    // Add audit log
+    addAuditLog('ปลดบัญชี LINE', `ปลดการผูกบัญชี LINE (เดิม: ${oldLine || '-'}) ของสมาชิกรหัส ${memberId} (${m.fullname}) สำเร็จ`);
+    return true;
+  }
+  return false;
 }

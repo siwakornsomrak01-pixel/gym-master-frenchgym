@@ -13,6 +13,8 @@
   
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- LINE LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 
@@ -467,6 +469,21 @@
                 </div>
               </div>
             </div>
+
+            <!-- LINE LIFF ID Setup Panel -->
+            <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-color); text-align: left;">
+              <h4 style="font-size: 14px; font-weight: 700; color: var(--accent-gold); margin-bottom: 6px;"><i data-lucide="shield-check" style="display: inline-block; vertical-align: middle; margin-right: 6px; width: 16px; height: 16px;"></i>ตั้งค่าเชื่อมต่อ LINE LIFF (ระบบป้องกันสวมรอยใช้เบอร์เพื่อน)</h4>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">เมื่อเปิดใช้งาน ระบบจะบังคับให้สแกนแล้วล็อกอินผ่านแอป LINE เพื่อยืนยันว่าเป็นเจ้าของเครื่องและ ID จริง ไม่สามารถใช้มือถือสวมสิทธิ์เบอร์โทรคนอื่นได้</p>
+              <form id="owner-line-config-form" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                <div class="form-group" style="margin-bottom: 0; flex-grow: 1; min-width: 250px;">
+                  <label for="owner-liff-id" style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px;">LINE LIFF ID</label>
+                  <input type="text" id="owner-liff-id" placeholder="เช่น 2006325950-AbCdEfGh" class="form-input" style="height: 38px; font-size: 13px; width: 100%;">
+                </div>
+                <button type="submit" class="primary-btn" style="height: 38px; width: auto; font-size: 13px; background-color: var(--accent-gold); border-color: var(--accent-gold); color: #000; font-weight: 600; padding: 0 20px;">
+                  บันทึกและเปิดใช้ LINE
+                </button>
+              </form>
+            </div>
           </div>
         </section>
 
@@ -742,6 +759,19 @@
               <input type="number" id="form-special-price" class="form-input" min="0" placeholder="ระบุราคาที่เป็นมิตร...">
             </div>
           </div>
+
+          <!-- LINE Account Binding Status inside Modal -->
+          <div id="modal-line-status-container" style="display: none; margin-top: 15px; padding: 12px 16px; border: 1px dashed rgba(46, 204, 113, 0.3); border-radius: 8px; background-color: rgba(46, 204, 113, 0.03); align-items: center; justify-content: space-between; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: #2ecc71; display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 13px;">
+                <i data-lucide="shield-check" style="width: 15px; height: 15px;"></i> LINE ผูกสิทธิ์แล้ว
+              </span>
+            </div>
+            <button type="button" id="btn-unlink-line" class="secondary-btn" style="width: auto; height: 28px; font-size: 11px; padding: 0 10px; color: var(--color-danger); border-color: rgba(231,76,60,0.3); background: transparent;">
+              ปลดบัญชี LINE
+            </button>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button type="button" class="secondary-btn" style="width: auto;" id="cancel-member-modal">ยกเลิก</button>
