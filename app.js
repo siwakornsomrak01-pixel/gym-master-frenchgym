@@ -106,6 +106,72 @@ function playCheckinSound(status) {
   }
 }
 
+// ฟังก์ชันสร้างการแจ้งเตือนแบบ Toast Popup บน iPad พนักงาน
+function showCheckinNotification(checkin) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'gym-toast';
+  
+  let iconClass = 'check-circle';
+  let statusClass = 'active';
+  let statusText = 'เช็กอินสำเร็จ';
+  
+  if (checkin.status === 'warning') {
+    iconClass = 'alert-triangle';
+    statusClass = 'warning';
+    statusText = 'อายุสมาชิกใกล้หมด';
+  } else if (checkin.status === 'expired') {
+    iconClass = 'x-circle';
+    statusClass = 'expired';
+    statusText = 'สมาชิกหมดอายุ';
+  }
+
+  const timeOnly = checkin.timestamp.split(' ')[1] || '';
+  
+  toast.innerHTML = `
+    <div class="gym-toast-icon ${statusClass}">
+      <i data-lucide="${iconClass}"></i>
+    </div>
+    <div class="gym-toast-body">
+      <div class="gym-toast-title" style="font-weight: 600; color: #fff;">${checkin.memberName}</div>
+      <div class="gym-toast-desc">${statusText} • แพ็กเกจ: ${checkin.planName} • เวลา: ${timeOnly} น.</div>
+    </div>
+    <button class="gym-toast-close" aria-label="ปิดแจ้งเตือน">&times;</button>
+  `;
+
+  const closeBtn = toast.querySelector('.gym-toast-close');
+  closeBtn.addEventListener('click', () => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  });
+
+  container.appendChild(toast);
+
+  // เล่นเสียงแจ้งเตือนประกอบการเด้งของการแจ้งเตือน
+  playCheckinSound(checkin.status);
+
+  // อัปเดตไอคอน Lucide เฉพาะในป็อปอัปนี้
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons({
+      node: toast
+    });
+  }
+
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
+  // ลบออกอัตโนมัติภายใน 6 วินาที
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400);
+    }
+  }, 6000);
+}
+
 // โหลดและเรนเดอร์ไอคอน Lucide ทั่วหน้าเว็บ
 function refreshIcons() {
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
@@ -840,6 +906,9 @@ function handleQuickCheckin(e) {
   if (!code) return;
 
   const result = DB.checkInMember(code);
+  if (result.success && result.checkin) {
+    window._lastLocalCheckinId = result.checkin.id;
+  }
   const panel = document.getElementById('checkin-result-panel');
   panel.className = 'checkin-status-panel';
 
@@ -938,6 +1007,9 @@ function handleQuickDailyPassSubmit(e) {
   }
 
   const result = DB.sellWalkInDaily(fullname, amount, paymentMethod);
+  if (result && result.checkin) {
+    window._lastLocalCheckinId = result.checkin.id;
+  }
   const panel = document.getElementById('checkin-result-panel');
   panel.className = 'checkin-status-panel active';
 
@@ -1623,6 +1695,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
   DB.initializeData();
 
+  // เริ่มฟังรายการเช็กอินแบบเรียลไทม์เพื่อแจ้งเตือนพนักงานหน้าร้าน (iPad)
+  let lastSeenCheckinId = null;
+  if (DB.getFirebaseConnectedStatus()) {
+    console.log('🔔 [Firebase] เริ่มระบบรับฟังการเช็กอินเรียลไทม์ (Real-time Notifications)...');
+    DB.listenToCheckins((checkins) => {
+      if (checkins && checkins.length > 0) {
+        const latest = checkins[0];
+        
+        // ถ้าเป็นการเรียกใช้ครั้งแรก (Initial Load) ให้จำ ID ล่าสุดไว้เฉยๆ ไม่แจ้งเตือนซ้ำของเก่า
+        if (lastSeenCheckinId === null) {
+          lastSeenCheckinId = latest.id;
+        } else if (latest.id !== lastSeenCheckinId) {
+          // ค้นหาเช็กอินใหม่ๆ ทั้งหมด (กรณีมีคนเช็กอินเกือบพร้อมกันหลายคน)
+          const index = checkins.findIndex(c => c.id === lastSeenCheckinId);
+          let newCheckins = [];
+          if (index === -1) {
+            newCheckins = [latest];
+          } else if (index > 0) {
+            newCheckins = checkins.slice(0, index);
+          }
+          
+          lastSeenCheckinId = latest.id;
+          
+          // เรียงจากเก่าไปใหม่ เพื่อแสดงแจ้งเตือนตามลำดับเวลาจริง
+          newCheckins.reverse().forEach(c => {
+            // แจ้งเตือนถ้าไม่ใช่รายการเช็กอินที่เราเพิ่งกดทำรายการเองจากหน้าเครื่องนี้ (ป้องกันเตือนและส่งเสียงซ้อน)
+            if (c.id !== window._lastLocalCheckinId) {
+              showCheckinNotification(c);
+            }
+          });
+          
+          // อัปเดตข้อมูลบนหน้าจอในกรณีที่หน้าจอที่เปิดอยู่คือ Dashboard หรือ Check-in log
+          const activeLink = document.querySelector('.sidebar .nav-link.active');
+          if (activeLink) {
+            const activeView = activeLink.dataset.view;
+            loadViewData(activeView);
+          }
+        }
+      }
+    });
+  }
+
   // อัปเดตวันที่จริงของระบบที่ sidebar-footer
   const dateEl = document.getElementById('sidebar-current-date');
   if (dateEl) {
@@ -2261,6 +2375,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const checkinResult = DB.checkInMember(autoCheckInMember.id);
       
       if (checkinResult && checkinResult.success) {
+        if (checkinResult.checkin) {
+          window._lastLocalCheckinId = checkinResult.checkin.id;
+        }
         selfCheckinBtn.style.display = 'none';
         selfCheckinSuccess.style.display = 'block';
         

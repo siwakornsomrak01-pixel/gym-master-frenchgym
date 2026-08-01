@@ -1,6 +1,6 @@
 // Gym Master - Data Store & LocalStorage Controller
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { firebaseConfig } from './firebase-config.js';
 
 // เริ่มต้นเชื่อมต่อ Firebase Firestore (ตรวจเช็ก Config)
@@ -1062,4 +1062,23 @@ export function findMemberByLineUserId(lineUserId) {
     daysRemaining: diffDays,
     lineUserId: found.lineUserId
   };
+}
+
+// listenToCheckins สำหรับให้แดชบอร์ด iPad รับฟังการเช็กอินเรียลไทม์
+export function listenToCheckins(callback) {
+  if (!isFirebaseConnected || !db) return null;
+  const docRef = doc(db, 'gym_data', 'checkins');
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const cloudDoc = docSnap.data();
+      const cloudData = cloudDoc.data || [];
+      const cloudUpdatedAt = cloudDoc.updatedAt || new Date().toISOString();
+      
+      // อัปเดตข้อมูลลง LocalStorage เพื่อให้สอดคล้องกันทันที
+      localStorage.setItem('gm_checkins', JSON.stringify(cloudData));
+      localStorage.setItem('gm_updatedAt_checkins', cloudUpdatedAt);
+      
+      callback(cloudData);
+    }
+  });
 }
