@@ -1,6 +1,24 @@
 // Gym Master - Core Application Controller
 import * as DB from './data.js';
 
+// ช่วยดาวน์โหลดรายงานออกเป็นไฟล์ CSV (รองรับภาษาไทยผ่าน UTF-8 BOM)
+function downloadCSV(filename, headers, rows) {
+  const csvContent = "\uFEFF" + [
+    headers.join(','),
+    ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 // เก็บ Instance ของ Chart.js เพื่อรีเซ็ตเวลาอัปเดตข้อมูล
 let revenueChartInstance = null;
 
@@ -18,6 +36,11 @@ const memberFilterState = {
   searchQuery: '',
   statusFilter: 'all' // all, active, warning, expired
 };
+
+// เก็บสถานะเลขหน้าสำหรับการทำ Pagination ตาราง
+let membersCurrentPage = 1;
+let auditCurrentPage = 1;
+const ITEMS_PER_PAGE = 15;
 
 // สังเคราะห์เสียงประกอบด้วย Web Audio API เพื่อแจ้งเตือนการเช็กอินด่วน
 function playCheckinSound(status) {
@@ -260,7 +283,34 @@ function renderAuditLogs() {
 
   auditTableBody.innerHTML = '';
 
-  if (filteredLogs.length === 0) {
+  const totalCount = filteredLogs.length;
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
+  if (auditCurrentPage > totalPages) auditCurrentPage = totalPages;
+  if (auditCurrentPage < 1) auditCurrentPage = 1;
+
+  const startIndex = (auditCurrentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalCount);
+  const pageLogs = filteredLogs.slice(startIndex, endIndex);
+
+  // อัปเดตข้อมูลตัวเลขหน้า Pagination
+  const pageStartEl = document.getElementById('audit-page-start');
+  const pageEndEl = document.getElementById('audit-page-end');
+  const totalCountEl = document.getElementById('audit-total-count');
+  const currentPageNumEl = document.getElementById('audit-current-page-num');
+  const prevBtn = document.getElementById('btn-audit-prev-page');
+  const nextBtn = document.getElementById('btn-audit-next-page');
+
+  if (pageStartEl) pageStartEl.textContent = totalCount === 0 ? 0 : startIndex + 1;
+  if (pageEndEl) pageEndEl.textContent = endIndex;
+  if (totalCountEl) totalCountEl.textContent = totalCount;
+  if (currentPageNumEl) currentPageNumEl.textContent = auditCurrentPage;
+  
+  if (prevBtn) prevBtn.disabled = (auditCurrentPage === 1);
+  if (nextBtn) nextBtn.disabled = (auditCurrentPage === totalPages);
+
+  auditTableBody.innerHTML = '';
+
+  if (pageLogs.length === 0) {
     auditTableBody.innerHTML = `
       <tr>
         <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-secondary);">
@@ -275,7 +325,7 @@ function renderAuditLogs() {
     return;
   }
 
-  filteredLogs.forEach(log => {
+  pageLogs.forEach(log => {
     const tr = document.createElement('tr');
     
     const userName = log.userName || 'ระบบหลัก';
@@ -477,7 +527,32 @@ function renderMembersList() {
     return matchQuery && matchStatus;
   });
 
-  if (filteredMembers.length === 0) {
+  const totalCount = filteredMembers.length;
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
+  if (membersCurrentPage > totalPages) membersCurrentPage = totalPages;
+  if (membersCurrentPage < 1) membersCurrentPage = 1;
+
+  const startIndex = (membersCurrentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalCount);
+  const pageMembers = filteredMembers.slice(startIndex, endIndex);
+
+  // อัปเดตตัวเลขหน้า Pagination ของสมาชิก
+  const pageStartEl = document.getElementById('members-page-start');
+  const pageEndEl = document.getElementById('members-page-end');
+  const totalCountEl = document.getElementById('members-total-count');
+  const currentPageNumEl = document.getElementById('members-current-page-num');
+  const prevBtn = document.getElementById('btn-members-prev-page');
+  const nextBtn = document.getElementById('btn-members-next-page');
+
+  if (pageStartEl) pageStartEl.textContent = totalCount === 0 ? 0 : startIndex + 1;
+  if (pageEndEl) pageEndEl.textContent = endIndex;
+  if (totalCountEl) totalCountEl.textContent = totalCount;
+  if (currentPageNumEl) currentPageNumEl.textContent = membersCurrentPage;
+
+  if (prevBtn) prevBtn.disabled = (membersCurrentPage === 1);
+  if (nextBtn) nextBtn.disabled = (membersCurrentPage === totalPages);
+
+  if (pageMembers.length === 0) {
     tableBody.innerHTML = `
       <tr>
         <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">
@@ -488,7 +563,7 @@ function renderMembersList() {
     return;
   }
 
-  filteredMembers.forEach(m => {
+  pageMembers.forEach(m => {
     const initials = m.fullname.substring(0, 2);
     const plan = plans.find(p => p.id === m.planId);
     const planName = plan ? plan.name : 'ไม่ระบุ';
@@ -655,6 +730,10 @@ function handleMemberFormSubmit(e) {
   
   if (isSpecial) {
     paymentAmount = Number(document.getElementById('form-special-price').value);
+    if (isNaN(paymentAmount) || paymentAmount < 0) {
+      alert('❌ กรุณากรอกราคาพิเศษที่ถูกต้อง (ห้ามติดลบ)');
+      return;
+    }
   }
 
   if (id) {
@@ -853,7 +932,10 @@ function handleQuickDailyPassSubmit(e) {
 
   const fullname = nameInput.value.trim() || 'ลูกค้า Walk-in';
   const amount = Number(priceInput.value);
-  const paymentMethod = paymentSelect.value;
+  if (isNaN(amount) || amount < 0) {
+    alert('❌ กรุณากรอกราคากลางที่ถูกต้อง (ห้ามติดลบ)');
+    return;
+  }
 
   const result = DB.sellWalkInDaily(fullname, amount, paymentMethod);
   const panel = document.getElementById('checkin-result-panel');
@@ -1472,7 +1554,12 @@ function handleRenewalSubmit(e) {
   e.preventDefault();
   const memberId = document.getElementById('renew-member-id').value;
   const planId = document.getElementById('renew-plan-select').value;
-  const amount = document.getElementById('renew-price-input').value;
+  const amountVal = document.getElementById('renew-price-input').value;
+  const amount = Number(amountVal);
+  if (isNaN(amount) || amount < 0) {
+    alert('❌ กรุณากรอกจำนวนเงินที่ถูกต้อง (ห้ามติดลบ)');
+    return;
+  }
   const paymentMethod = document.getElementById('renew-payment-method').value;
 
   const members = DB.getMembers();
@@ -1779,10 +1866,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const auditFilterAction = document.getElementById('audit-filter-action');
 
   if (auditSearchInput) {
-    auditSearchInput.addEventListener('input', renderAuditLogs);
+    auditSearchInput.addEventListener('input', () => {
+      auditCurrentPage = 1;
+      renderAuditLogs();
+    });
   }
   if (auditFilterAction) {
-    auditFilterAction.addEventListener('change', renderAuditLogs);
+    auditFilterAction.addEventListener('change', () => {
+      auditCurrentPage = 1;
+      renderAuditLogs();
+    });
   }
 
   const syncBtn = document.getElementById('diagnostic-sync-btn');
@@ -1883,6 +1976,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('member-search');
   searchInput.addEventListener('input', (e) => {
     memberFilterState.searchQuery = e.target.value;
+    membersCurrentPage = 1;
     renderMembersList();
   });
 
@@ -1892,6 +1986,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('active');
       
       memberFilterState.statusFilter = btn.dataset.filter;
+      membersCurrentPage = 1;
       renderMembersList();
     });
   });
@@ -2226,5 +2321,97 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // ----------------- PAGINATION BUTTONS CLICK HANDLERS -----------------
+  document.getElementById('btn-members-prev-page')?.addEventListener('click', () => {
+    if (membersCurrentPage > 1) {
+      membersCurrentPage--;
+      renderMembersList();
+    }
+  });
+  document.getElementById('btn-members-next-page')?.addEventListener('click', () => {
+    const query = memberFilterState.searchQuery.toLowerCase().trim();
+    const statusFilter = memberFilterState.statusFilter;
+    const totalCount = DB.getMembers().filter(m => {
+      if (m.id.startsWith('GM-W-')) return false;
+      const matchQuery = m.id.toLowerCase().includes(query) ||
+                          m.fullname.toLowerCase().includes(query) ||
+                          m.phone.includes(query);
+      const matchStatus = statusFilter === 'all' || m.status === statusFilter;
+      return matchQuery && matchStatus;
+    }).length;
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
+    if (membersCurrentPage < totalPages) {
+      membersCurrentPage++;
+      renderMembersList();
+    }
+  });
+
+  document.getElementById('btn-audit-prev-page')?.addEventListener('click', () => {
+    if (auditCurrentPage > 1) {
+      auditCurrentPage--;
+      renderAuditLogs();
+    }
+  });
+  document.getElementById('btn-audit-next-page')?.addEventListener('click', () => {
+    const searchVal = document.getElementById('audit-search-input')?.value.toLowerCase() || '';
+    const filterAction = document.getElementById('audit-filter-action')?.value || '';
+    const totalCount = DB.getAuditLogs().filter(log => {
+      if (!log) return false;
+      const matchSearch = (log.userName || '').toLowerCase().includes(searchVal) ||
+                          (log.action || '').toLowerCase().includes(searchVal) ||
+                          (log.details || '').toLowerCase().includes(searchVal) ||
+                          (log.id || '').toLowerCase().includes(searchVal);
+      const matchAction = !filterAction || log.action === filterAction;
+      return matchSearch && matchAction;
+    }).length;
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
+    if (auditCurrentPage < totalPages) {
+      auditCurrentPage++;
+      renderAuditLogs();
+    }
+  });
+
+  // ----------------- CSV EXPORT BUTTONS CLICK HANDLERS -----------------
+  document.getElementById('export-billing-csv')?.addEventListener('click', () => {
+    const transactions = DB.getTransactions() || [];
+    const headers = ['เลขที่ใบเสร็จ', 'รหัสสมาชิก', 'ชื่อสมาชิก', 'แพ็กเกจ', 'จำนวนเงิน', 'ช่องทางชำระ', 'วันที่รับเงิน'];
+    const rows = transactions.map(tx => [
+      tx.id,
+      tx.memberId,
+      tx.memberName,
+      tx.planName,
+      tx.amount,
+      tx.paymentMethod,
+      tx.date
+    ]);
+    downloadCSV('membership_payment_history.csv', headers, rows);
+  });
+
+  document.getElementById('export-shop-csv')?.addEventListener('click', () => {
+    const sales = DB.getShopSales() || [];
+    const headers = ['เลขที่ใบเสร็จ', 'รายการสินค้า', 'ยอดรวม', 'ช่องทางชำระ', 'วันที่ขาย'];
+    const rows = sales.map(sale => [
+      sale.id,
+      sale.items.map(it => `${it.name} x ${it.qty}`).join('; '),
+      sale.total,
+      sale.paymentMethod,
+      sale.date
+    ]);
+    downloadCSV('beverage_sales_history.csv', headers, rows);
+  });
+
+  document.getElementById('export-audit-csv')?.addEventListener('click', () => {
+    const logs = DB.getAuditLogs() || [];
+    const headers = ['รหัสบันทึก', 'วัน-เวลา', 'ผู้ปฏิบัติงาน', 'กิจกรรม', 'รายละเอียด'];
+    const rows = logs.map(log => [
+      log.id,
+      log.timestamp,
+      log.userName,
+      log.action,
+      log.details
+    ]);
+    downloadCSV('system_audit_logs.csv', headers, rows);
+  });
 
 });

@@ -356,12 +356,43 @@ export function initializeData() {
     localStorage.setItem('gm_audit_logs', JSON.stringify(INITIAL_AUDIT_LOGS));
   }
 
+  // ล้างประวัติสมาชิก Walk-in ชั่วคราวที่หมดอายุเกิน 7 วัน (ป้องกันข้อมูลบวม)
+  pruneExpiredWalkins();
+
   // ถ้าต่อ Firebase สำเร็จ ให้ดึงข้อมูลมาเขียนทับ LocalStorage ในเบื้องหลัง (รันครั้งเดียวต่อเซสชัน)
   if (isFirebaseConnected && !window._isFirebaseSyncingStarted) {
     window._isFirebaseSyncingStarted = true;
     syncFromCloud().then(() => {
       window.dispatchEvent(new CustomEvent('gym-master-cloud-synced'));
     });
+  }
+}
+
+export function pruneExpiredWalkins() {
+  let members = [];
+  try {
+    members = JSON.parse(localStorage.getItem('gm_members')) || [];
+  } catch (e) {
+    return;
+  }
+  
+  const today = getGymTodayDate();
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+  
+  const filtered = members.filter(m => {
+    if (m.id.startsWith('GM-W-')) {
+      const expiry = new Date(m.expiryDate);
+      return !isNaN(expiry.getTime()) && expiry > sevenDaysAgo;
+    }
+    return true;
+  });
+  
+  if (filtered.length !== members.length) {
+    localStorage.setItem('gm_members', JSON.stringify(filtered));
+    syncToCloud('members', filtered);
+    addAuditLog('ล้างประวัติ Walk-in', `ทำความสะอาดระบบ: ลบข้อมูลสมาชิก Walk-in ชั่วคราวที่หมดอายุเกิน 7 วันจำนวน ${members.length - filtered.length} รายการ`);
   }
 }
 

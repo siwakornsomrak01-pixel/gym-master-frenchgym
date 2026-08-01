@@ -1783,33 +1783,33 @@ body {
 }
 
 .status-indicator-card.active {
-  background-color: rgba(46, 204, 113, 0.05);
-  border-color: rgba(46, 204, 113, 0.3) !important;
-  color: #2ecc71;
-  box-shadow: 0 0 15px rgba(46, 204, 113, 0.1);
+  background-color: var(--color-success-bg);
+  border-color: var(--color-success-glow) !important;
+  color: var(--color-success);
+  box-shadow: 0 0 15px var(--color-success-glow);
 }
 
 .status-indicator-card.warning {
-  background-color: rgba(241, 196, 15, 0.05);
-  border-color: rgba(241, 196, 15, 0.3) !important;
-  color: #f1c40f;
-  box-shadow: 0 0 15px rgba(241, 196, 15, 0.1);
+  background-color: var(--color-warning-bg);
+  border-color: var(--color-warning-glow) !important;
+  color: var(--color-warning);
+  box-shadow: 0 0 15px var(--color-warning-glow);
 }
 
 .status-indicator-card.expired {
-  background-color: rgba(231, 76, 60, 0.05);
-  border-color: rgba(231, 76, 60, 0.3) !important;
-  color: #e74c3c;
-  box-shadow: 0 0 15px rgba(231, 76, 60, 0.1);
+  background-color: var(--color-danger-bg);
+  border-color: var(--color-danger-glow) !important;
+  color: var(--color-danger);
+  box-shadow: 0 0 15px var(--color-danger-glow);
 }
 
 .line-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background-color: rgba(46, 204, 113, 0.15);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.3);
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-success-glow);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 10px;
