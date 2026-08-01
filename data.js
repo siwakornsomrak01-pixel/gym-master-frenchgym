@@ -742,9 +742,18 @@ export function checkInMember(memberIdOrCode) {
   
   const checkins = getCheckins();
   const now = getGymTodayDate();
-  const timestampStr = now.getFullYear() + '-' + 
-                       String(now.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(now.getDate()).padStart(2, '0') + ' ' + 
+  
+  const todayPrefix = now.getFullYear() + '-' + 
+                      String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                      String(now.getDate()).padStart(2, '0');
+                      
+  const existingCheckin = checkins.find(c => c.memberId === member.id && c.timestamp.startsWith(todayPrefix));
+  if (existingCheckin) {
+    const timeMatch = existingCheckin.timestamp.split(' ')[1];
+    return { success: false, reason: `ท่านได้มาใช้บริการแล้ววันนี้ เมื่อเวลา ${timeMatch} น.` };
+  }
+
+  const timestampStr = todayPrefix + ' ' + 
                        String(now.getHours()).padStart(2, '0') + ':' + 
                        String(now.getMinutes()).padStart(2, '0') + ':' +
                        String(now.getSeconds()).padStart(2, '0');
