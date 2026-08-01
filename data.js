@@ -34,6 +34,12 @@ export function clearLastSyncError() {
   lastSyncError = null;
 }
 
+function generateUniqueId(prefix) {
+  const ts = Date.now().toString(36);
+  const rnd = Math.random().toString(36).substring(2, 6);
+  return `${prefix}-${ts}-${rnd}`.toUpperCase();
+}
+
 export async function getCloudCollectionCount(collectionName) {
   if (!isFirebaseConnected || !db) return null;
   try {
@@ -56,18 +62,21 @@ export async function getCloudCollectionCount(collectionName) {
 async function syncToCloud(collectionName, data) {
   if (!isFirebaseConnected || !db) return;
   try {
+    const nowIso = new Date().toISOString();
     const docRef = doc(db, 'gym_data', collectionName);
-    await setDoc(docRef, { data: data, updatedAt: new Date().toISOString() });
+    await setDoc(docRef, { data: data, updatedAt: nowIso });
+    localStorage.setItem('gm_updatedAt_' + collectionName, nowIso);
     console.log(`☁️ [Firebase] ซิงก์สำเร็จ: คอลเลกชัน ${collectionName}`);
   } catch (err) {
     console.error(`❌ [Firebase] ซิงก์ล้มเหลว: คอลเลกชัน ${collectionName}:`, err);
+    lastSyncError = err.message || String(err);
   }
 }
 
-// ฟังก์ชันดึงข้อมูลจาก Cloud Firestore ลงมาเขียนทับ LocalStorage
+// ฟังก์ชันดึงข้อมูลจาก Cloud Firestore ลงมาเขียนทับ LocalStorage (มีเปรียบเทียบ timestamp)
 export async function syncFromCloud() {
   if (!isFirebaseConnected || !db) return;
-  console.log('🔄 [Firebase] กำลังดึงข้อมูลจาก Cloud Firestore...');
+  console.log('🔄 [Firebase] กำลังตรวจสอบความสอดคล้องของข้อมูล Cloud Firestore...');
   const collections = [
     { name: 'plans', storageKey: 'gm_plans' },
     { name: 'products', storageKey: 'gm_products' },
@@ -86,16 +95,35 @@ export async function syncFromCloud() {
       const docRef = doc(db, 'gym_data', col.name);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        const cloudData = docSnap.data().data;
-        if (cloudData && Array.isArray(cloudData)) {
+        const cloudDoc = docSnap.data();
+        const cloudData = cloudDoc.data;
+        const cloudUpdatedAt = cloudDoc.updatedAt ? new Date(cloudDoc.updatedAt).getTime() : 0;
+        
+        const localUpdatedAtStr = localStorage.getItem('gm_updatedAt_' + col.name);
+        const localUpdatedAt = localUpdatedAtStr ? new Date(localUpdatedAtStr).getTime() : 0;
+        
+        const localVal = localStorage.getItem(col.storageKey);
+        
+        // หากข้อมูลในเครื่องใหม่กว่าข้อมูลบนคลาวด์ (เช่น แก้ไขตอนเน็ตหลุด) ให้อัปโหลดขึ้นคลาวด์แทน
+        if (localVal && localUpdatedAt > cloudUpdatedAt) {
+          let parsedLocal = [];
+          try { parsedLocal = JSON.parse(localVal); } catch(e) { parsedLocal = []; }
+          await syncToCloud(col.name, parsedLocal);
+          console.log(`📤 [Firebase] อัปโหลดข้อมูลออฟไลน์ในเครื่องขึ้นคลาวด์: ${col.name}`);
+        } else if (cloudData && Array.isArray(cloudData)) {
           localStorage.setItem(col.storageKey, JSON.stringify(cloudData));
+          if (cloudDoc.updatedAt) {
+            localStorage.setItem('gm_updatedAt_' + col.name, cloudDoc.updatedAt);
+          }
           console.log(`📥 [Firebase] ซิงก์ลงสำเร็จ: ${col.name} (${cloudData.length} รายการ)`);
         }
       } else {
         // ถ้าบนคลาวด์ยังไม่มีข้อมูล ให้อัปโหลดข้อมูลปัจจุบันใน LocalStorage ขึ้นไปแทน
         const localVal = localStorage.getItem(col.storageKey);
         if (localVal) {
-          await setDoc(docRef, { data: JSON.parse(localVal), updatedAt: new Date().toISOString() });
+          let parsedLocal = [];
+          try { parsedLocal = JSON.parse(localVal); } catch(e) { parsedLocal = []; }
+          await syncToCloud(col.name, parsedLocal);
           console.log(`📤 [Firebase] อัปโหลดข้อมูลเริ่มต้นไปคลาวด์: ${col.name}`);
         }
       }
@@ -250,17 +278,20 @@ export function getGymTodayDate() {
 
 // ช่วยจัดรูปแบบวันที่เป็น YYYY-MM-DD
 export function formatDateString(date) {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '';
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
-// เช็กสถานะของสมาชิกตามวันหมดอายุเทียบกับวันนี้ (2026-07-25)
+// เช็กสถานะของสมาชิกตามวันหมดอายุเทียบกับวันนี้
 export function calculateMemberStatus(expiryDateStr) {
+  if (!expiryDateStr) return 'expired';
   const today = getGymTodayDate();
   today.setHours(0, 0, 0, 0);
   const expiry = new Date(expiryDateStr);
+  if (isNaN(expiry.getTime())) return 'expired';
   expiry.setHours(0, 0, 0, 0);
 
   const diffTime = expiry - today;
@@ -420,7 +451,13 @@ export function deleteProduct(id) {
 // ฟังก์ชัน CRUD สำหรับ Members
 export function getMembers() {
   initializeData();
-  const members = JSON.parse(localStorage.getItem('gm_members'));
+  let members = [];
+  try {
+    members = JSON.parse(localStorage.getItem('gm_members')) || [];
+  } catch (e) {
+    console.error('Error parsing members storage:', e);
+    members = [];
+  }
   let changed = false;
   members.forEach(m => {
     const computedStatus = calculateMemberStatus(m.expiryDate);
@@ -430,7 +467,7 @@ export function getMembers() {
     }
   });
   if (changed) {
-    saveMembers(members);
+    localStorage.setItem('gm_members', JSON.stringify(members));
   }
   return members;
 }
@@ -586,7 +623,7 @@ export function addTransaction(memberId, planId, amount, paymentMethod) {
                   String(now.getHours()).padStart(2, '0') + ':' + 
                   String(now.getMinutes()).padStart(2, '0');
 
-  const txId = 'TX-' + (1000 + transactions.length + 1);
+  const txId = generateUniqueId('TX');
   
   const newTx = {
     id: txId,
@@ -627,7 +664,7 @@ export function addShopSale(items, total, paymentMethod) {
                   String(now.getHours()).padStart(2, '0') + ':' + 
                   String(now.getMinutes()).padStart(2, '0');
 
-  const saleId = 'SL-' + (1000 + sales.length + 1);
+  const saleId = generateUniqueId('SL');
   
   const newSale = {
     id: saleId,
@@ -682,7 +719,7 @@ export function checkInMember(memberIdOrCode) {
                        String(now.getSeconds()).padStart(2, '0');
 
   const newCheckin = {
-    id: 'CK-' + (1000 + checkins.length + 1),
+    id: generateUniqueId('CK'),
     memberId: member.id,
     memberName: member.fullname,
     timestamp: timestampStr,
@@ -887,7 +924,7 @@ export function addAuditLog(action, details) {
                   String(now.getMinutes()).padStart(2, '0') + ':' + 
                   String(now.getSeconds()).padStart(2, '0');
 
-  const logId = 'LOG-' + (1000 + logs.length + 1);
+  const logId = generateUniqueId('LOG');
   const newLog = {
     id: logId,
     timestamp: timeStr,
@@ -898,13 +935,19 @@ export function addAuditLog(action, details) {
   };
 
   logs.unshift(newLog); // เอาเหตุการณ์ล่าสุดขึ้นก่อน
+  if (logs.length > 500) logs.length = 500; // ป้องกัน LocalStorage บวม
   saveAuditLogs(logs);
   return newLog;
 }
 
 export function getSystemConfig() {
   initializeData();
-  const configArr = JSON.parse(localStorage.getItem('gm_config')) || [];
+  let configArr = [];
+  try {
+    configArr = JSON.parse(localStorage.getItem('gm_config')) || [];
+  } catch (e) {
+    configArr = [];
+  }
   let config = configArr[0] || { liffId: '' };
   return config;
 }
@@ -916,7 +959,16 @@ export function saveSystemConfig(config) {
 }
 
 export function linkMemberLine(memberId, lineUserId) {
+  if (!lineUserId) return false;
   const members = getMembers();
+  
+  // ปลดการผูก LINE ID นี้จากสมาชิกคนอื่นหากเคยถูกผูกไว้ เพื่อป้องกัน LINE ID ซ้ำในระบบ
+  members.forEach(x => {
+    if (x.lineUserId === lineUserId && x.id !== memberId) {
+      x.lineUserId = null;
+    }
+  });
+
   const m = members.find(x => x.id === memberId);
   if (m) {
     m.lineUserId = lineUserId;
