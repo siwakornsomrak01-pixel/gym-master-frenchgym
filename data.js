@@ -943,3 +943,31 @@ export function unlinkMemberLine(memberId) {
   }
   return false;
 }
+
+export function findMemberByLineUserId(lineUserId) {
+  if (!lineUserId) return null;
+  const members = getMembers() || [];
+  const found = members.find(m => m.lineUserId === lineUserId);
+  if (!found) return null;
+  
+  const maskedPhone = found.phone ? found.phone.replace(/^(\d{3})\d+(\d{4})$/, '$1-xxx-$2') : '-';
+  const plans = getPlans() || [];
+  const plan = plans.find(p => p.id === found.planId);
+  const planName = plan ? plan.name : 'ทั่วไป (General)';
+
+  const today = getGymTodayDate();
+  const expDate = new Date(found.expiryDate);
+  const diffTime = expDate - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return {
+    id: found.id,
+    fullname: found.fullname,
+    phone: maskedPhone,
+    planName: planName,
+    expiryDate: found.expiryDate,
+    status: found.status,
+    daysRemaining: diffDays,
+    lineUserId: found.lineUserId
+  };
+}

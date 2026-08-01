@@ -1552,6 +1552,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   let currentPinInput = '';
   let portalLineProfile = null;
+  let autoCheckInMember = null;
 
   function showPortalView() {
     if (pinModal) pinModal.classList.remove('active');
@@ -1583,9 +1584,55 @@ document.addEventListener('DOMContentLoaded', () => {
             liff.getProfile()
               .then(profile => {
                 portalLineProfile = profile;
-                if (portalErrorMsg) {
-                  portalErrorMsg.innerHTML = `<span style="color: #2ecc71; font-weight: 600;"><i data-lucide="shield-check" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>LINE: ${profile.displayName} (เชื่อมต่อปลอดภัย)</span>`;
+                
+                // ตรวจสอบว่าโปรไฟล์ไลน์นี้เคยผูกกับสมาชิกรึยัง
+                const matchedMember = DB.findMemberByLineUserId(profile.userId);
+                if (matchedMember) {
+                  autoCheckInMember = matchedMember;
+                  
+                  // เปิดหน้าเช็กอินอัตโนมัติซ่อนฟอร์มค้นหา
+                  document.getElementById('portal-search-panel').style.display = 'none';
+                  document.getElementById('portal-autocheckin-panel').style.display = 'block';
+                  
+                  // ใส่ชื่อสมาชิก
+                  document.getElementById('autocheckin-member-name').textContent = matchedMember.fullname;
+                  document.getElementById('autocheckin-res-plan').textContent = matchedMember.planName;
+                  document.getElementById('autocheckin-res-expiry').textContent = matchedMember.expiryDate;
+                  
+                  const checkinBtn = document.getElementById('btn-portal-self-checkin');
+                  const checkinSuccess = document.getElementById('portal-self-checkin-success');
+                  if (checkinBtn) checkinBtn.style.display = 'flex';
+                  if (checkinSuccess) checkinSuccess.style.display = 'none';
+                  
+                  if (portalErrorMsg) {
+                    portalErrorMsg.innerHTML = `<span style="color: #2ecc71; font-weight: 600;"><i data-lucide="shield-check" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>ยินดีต้อนรับ LINE: ${profile.displayName}</span>`;
+                  }
+                  
+                  if (matchedMember.status === 'expired') {
+                    if (checkinBtn) {
+                      checkinBtn.disabled = true;
+                      checkinBtn.style.backgroundColor = 'var(--color-danger)';
+                      checkinBtn.style.borderColor = 'var(--color-danger)';
+                      checkinBtn.style.boxShadow = 'none';
+                      checkinBtn.innerHTML = '<i data-lucide="x-circle" style="width: 22px; height: 22px;"></i><span>สมาชิกหมดอายุ (กรุณาติดต่อเคาน์เตอร์)</span>';
+                    }
+                  } else {
+                    if (checkinBtn) {
+                      checkinBtn.disabled = false;
+                      checkinBtn.style.backgroundColor = 'var(--color-success)';
+                      checkinBtn.style.borderColor = 'var(--color-success)';
+                      checkinBtn.innerHTML = '<i data-lucide="scan-face" style="width: 22px; height: 22px;"></i><span>กดเพื่อเช็กอินเข้ายิม</span>';
+                    }
+                  }
                   refreshIcons();
+                } else {
+                  // ยังไม่มีการผูกบัญชี
+                  document.getElementById('portal-search-panel').style.display = 'block';
+                  document.getElementById('portal-autocheckin-panel').style.display = 'none';
+                  if (portalErrorMsg) {
+                    portalErrorMsg.innerHTML = `<span style="color: var(--accent-orange); font-weight: 500;"><i data-lucide="info" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>ไลน์เชื่อมโยงสำเร็จ กรุณากรอกรหัสสมาชิกด้านล่างเพื่อผูกบัญชีในครั้งแรก</span>`;
+                    refreshIcons();
+                  }
                 }
               })
               .catch(err => {
@@ -2100,6 +2147,56 @@ document.addEventListener('DOMContentLoaded', () => {
       const portalUrl = window.location.origin + window.location.pathname + '?portal=true';
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(portalUrl)}`;
       window.open(qrApiUrl, '_blank');
+    });
+  }
+
+  // ----------------- PORTAL SELF CHECK-IN BUTTONS CONTROLLER -----------------
+  const selfCheckinBtn = document.getElementById('btn-portal-self-checkin');
+  const selfCheckinSuccess = document.getElementById('portal-self-checkin-success');
+  const selfCheckinTime = document.getElementById('portal-self-checkin-time');
+  const portalRelinkBtn = document.getElementById('portal-relink-btn');
+
+  if (selfCheckinBtn) {
+    selfCheckinBtn.addEventListener('click', () => {
+      if (!autoCheckInMember) return;
+      
+      selfCheckinBtn.disabled = true;
+      selfCheckinBtn.innerHTML = '<span style="color: var(--text-muted);">⏳ กำลังบันทึกประวัติ...</span>';
+      
+      const checkinResult = DB.checkInMember(autoCheckInMember.id);
+      
+      if (checkinResult && checkinResult.success) {
+        selfCheckinBtn.style.display = 'none';
+        selfCheckinSuccess.style.display = 'block';
+        
+        const now = DB.getGymTodayDate();
+        const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                        String(now.getMinutes()).padStart(2, '0') + ':' +
+                        String(now.getSeconds()).padStart(2, '0');
+        selfCheckinTime.textContent = `เวลาเช็กอิน: ${timeStr} น.`;
+        
+        refreshIcons();
+        alert('🟢 เช็กอินสำเร็จ! ยินดีต้อนรับเข้าใช้งานครับ');
+      } else {
+        selfCheckinBtn.disabled = false;
+        selfCheckinBtn.innerHTML = '<i data-lucide="scan-face" style="width: 22px; height: 22px;"></i><span>กดเพื่อเช็กอินเข้ายิม</span>';
+        alert('❌ เช็กอินล้มเหลว: ' + (checkinResult.reason || 'กรุณาลองใหม่อีกครั้ง'));
+        refreshIcons();
+      }
+    });
+  }
+
+  if (portalRelinkBtn) {
+    portalRelinkBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      autoCheckInMember = null;
+      document.getElementById('portal-autocheckin-panel').style.display = 'none';
+      document.getElementById('portal-search-panel').style.display = 'block';
+      const portalErrorMsg = document.getElementById('portal-error-msg');
+      if (portalErrorMsg) {
+        portalErrorMsg.innerHTML = '<span style="color: var(--text-muted);"><i data-lucide="info" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>พิมพ์รหัสหรือเบอร์โทรศัพท์เพื่อสลับเปลี่ยนบัญชีผูกสิทธิ์ LINE</span>';
+        refreshIcons();
+      }
     });
   }
 

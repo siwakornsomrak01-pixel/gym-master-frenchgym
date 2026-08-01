@@ -634,6 +634,46 @@
                 <p style="color: var(--text-secondary); font-size: 13px;">ตรวจสอบสถานะและวันหมดอายุสมาชิกของท่าน</p>
               </div>
 
+              <!-- Auto Check-in Panel -->
+              <div id="portal-autocheckin-panel" style="display: none; text-align: center;">
+                <div style="margin-bottom: 25px;">
+                  <h3 style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">สวัสดีคุณ <span id="autocheckin-member-name" style="color: var(--accent-orange); font-weight: 800;">-</span></h3>
+                  <p style="font-size: 13px; color: var(--text-secondary);">ตรวจพบรหัสสมาชิกของคุณผ่านบัญชี LINE สำเร็จ</p>
+                </div>
+                
+                <!-- Large Check-in Button -->
+                <button type="button" id="btn-portal-self-checkin" class="primary-btn" style="width: 100%; height: 58px; font-size: 18px; font-weight: 700; border-radius: 12px; margin-bottom: 20px; background-color: var(--color-success); border-color: var(--color-success); box-shadow: 0 0 15px rgba(46, 204, 113, 0.2); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                  <i data-lucide="scan-face" style="width: 22px; height: 22px;"></i>
+                  <span>กดเพื่อเช็กอินเข้ายิม</span>
+                </button>
+                
+                <!-- Success Message Display (Initially Hidden) -->
+                <div id="portal-self-checkin-success" style="display: none; padding: 16px; border-radius: 8px; border: 1px solid rgba(46, 204, 113, 0.3); background-color: rgba(46, 204, 113, 0.05); color: #2ecc71; font-size: 15px; font-weight: 600; margin-bottom: 20px; line-height: 1.5; text-align: center;">
+                  <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px;">
+                    <i data-lucide="sparkles" style="width: 18px; height: 18px;"></i>
+                    <span>เช็กอินเข้ายิมสำเร็จแล้ว!</span>
+                  </div>
+                  <div id="portal-self-checkin-time" style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">เวลา: - น.</div>
+                </div>
+
+                <!-- Info summary -->
+                <div style="background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px 18px; margin-bottom: 25px; text-align: left; font-size: 13px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dashed var(--border-color); padding-bottom: 6px;">
+                    <span style="color: var(--text-secondary);">ประเภทแพ็กเกจ</span>
+                    <strong id="autocheckin-res-plan" style="color: var(--text-primary);">-</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; padding-top: 2px;">
+                    <span style="color: var(--text-secondary);">วันหมดอายุสมาชิก</span>
+                    <strong id="autocheckin-res-expiry" style="color: var(--text-primary);">-</strong>
+                  </div>
+                </div>
+                
+                <!-- Switch Account / Relink option -->
+                <p style="font-size: 12px; color: var(--text-muted); margin: 10px 0 0;">
+                  ไม่ใช่บัญชีของคุณ? <a href="#" id="portal-relink-btn" style="color: var(--accent-orange); text-decoration: underline; font-weight: 600;">สลับรหัสสมาชิกอื่น</a>
+                </p>
+              </div>
+
               <!-- Input Form Panel -->
               <div id="portal-search-panel">
                 <form id="portal-query-form" onsubmit="event.preventDefault();">
