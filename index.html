@@ -14,8 +14,8 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-BPSgXOx9.js"></script>
-  <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-B00Byxf9.css">
+  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-D7e4XvmP.js"></script>
+  <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-D78eD5lu.css">
 </head>
 <body>
 
@@ -242,77 +242,34 @@
 
         <!-- 3. QUICK CHECK-IN VIEW -->
         <section id="checkin-view" class="view-panel">
-          <div class="checkin-layout">
+          <div class="checkin-layout" style="display: flex; flex-direction: column; gap: 24px;">
             
-            <!-- Left check-in sidebar column containing member checkin and daily pass purchase -->
-            <div class="checkin-sidebar-column">
+            <div class="action-grid">
+              <button class="big-action-btn" id="btn-open-checkin-modal">
+                <div class="icon-wrapper" style="color: var(--color-success);"><i data-lucide="scan-face"></i></div>
+                <h3>ลงชื่อเข้าใช้ยิมสมาชิกเดิม</h3>
+                <p>สำหรับสมาชิกรายเดือน/รายปี</p>
+              </button>
               
-              <!-- Form 1: Member Check-In -->
-              <div class="panel-card" style="padding: 24px;">
-                <h3 class="panel-title" style="margin-bottom: 16px;"><i data-lucide="scan-face"></i>ลงชื่อเข้าใช้ยิมสมาชิกเดิม</h3>
-                <form id="checkin-submit-form" onsubmit="event.preventDefault();">
-                  <div class="form-group">
-                    <label for="checkin-member-id">รหัสสมาชิก หรือ เบอร์โทรศัพท์</label>
-                    <input type="text" id="checkin-member-id" class="form-input" placeholder="เช่น GM-001 หรือ 0812345678" required autocomplete="off">
-                  </div>
-                  <button type="submit" class="primary-btn checkin-btn" style="padding: 12px; margin-top: 12px;">
-                    <i data-lucide="log-in"></i>
-                    <span>ยืนยันเช็กอินเข้าใช้ยิม</span>
-                  </button>
-                </form>
-
-                <div class="sound-toggle-wrapper" style="margin-top: 12px;">
-                  <input type="checkbox" id="sound-checkbox" checked>
-                  <label for="sound-checkbox">เปิดเสียงแจ้งเตือนสถานะเช็กอินสำเร็จ/ระงับ</label>
-                </div>
-              </div>
-
-              <!-- Form 2: Quick Daily Pass Walk-in -->
-              <div class="panel-card quick-daily-pass-card" style="padding: 24px;">
-                <h3 class="panel-title" style="margin-bottom: 16px; color: var(--accent-gold);"><i data-lucide="ticket"></i>ขายตั๋วรายวันและเช็กอินทันที (Daily Pass)</h3>
-                <form id="quick-daily-pass-form" onsubmit="event.preventDefault();">
-                  <div class="form-group">
-                    <label for="daily-pass-name">ชื่อลูกค้า (เว้นว่างได้)</label>
-                    <input type="text" id="daily-pass-name" class="form-input" placeholder="ลูกค้า Walk-in" autocomplete="off">
-                  </div>
-                  
-                  <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                      <label for="daily-pass-price">ค่าบริการพิเศษ (บาท)</label>
-                      <input type="number" id="daily-pass-price" class="form-input" value="150" min="0">
-                    </div>
-                    <div class="form-group">
-                      <label for="daily-pass-payment">การชำระเงิน</label>
-                      <select id="daily-pass-payment" class="form-select">
-                        <option value="เงินสด">เงินสด</option>
-                        <option value="โอนผ่านธนาคาร">โอนเงิน (QR)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <button type="submit" class="gold-btn" style="margin-top: 16px; padding: 12px;">
-                    <i data-lucide="zap"></i>
-                    <span>รับเงินและเช็กอินทันที</span>
-                  </button>
-                </form>
-              </div>
-
-              <!-- Today's check-ins log table for desk staff -->
-              <div class="panel-card" style="padding: 20px;">
-                <h3 class="panel-title" style="margin-bottom: 12px;"><i data-lucide="history"></i>ประวัติการเช็กอินวันนี้</h3>
-                <div class="recent-checkins-list" id="today-checkin-log-list" style="max-height: 180px;">
-                  <!-- Live checkin log updates here -->
-                </div>
-              </div>
-
+              <button class="big-action-btn" id="btn-open-daily-pass-modal">
+                <div class="icon-wrapper" style="color: var(--accent-gold);"><i data-lucide="ticket"></i></div>
+                <h3>ขายตั๋วรายวันและเช็กอิน</h3>
+                <p>สำหรับลูกค้า Walk-in</p>
+              </button>
+              
+              <button class="big-action-btn" id="btn-open-register-modal">
+                <div class="icon-wrapper" style="color: var(--accent-orange);"><i data-lucide="user-plus"></i></div>
+                <h3>เพิ่มสมาชิกใหม่</h3>
+                <p>สมัครแพ็กเกจใหม่</p>
+              </button>
             </div>
 
-            <!-- Right check-in result billboard -->
-            <div class="checkin-status-panel empty" id="checkin-result-panel">
+            <!-- Right check-in result billboard (can keep it below the buttons or hidden initially) -->
+            <div class="checkin-status-panel empty" id="checkin-result-panel" style="min-height: 200px; margin-top: 20px;">
               <div class="status-display" id="checkin-status-display">
                 <div class="status-icon"><i data-lucide="info"></i></div>
-                <div class="status-message">กรุณาระบุรหัสสมาชิกเพื่อตรวจสอบ</div>
-                <p style="color: var(--text-secondary); font-size: 14px;">พิมพ์รหัสและกดปุ่มยืนยันเช็กอินด้านซ้ายเพื่อดูสิทธิ์</p>
+                <div class="status-message">ระบบพร้อมใช้งาน</div>
+                <p style="color: var(--text-secondary); font-size: 14px;">เลือกระบบด้านบนเพื่อดำเนินการ</p>
               </div>
             </div>
 
@@ -776,6 +733,73 @@
   </div>
 
   <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal 1.1: Check-in Modal -->
+  <div class="modal-overlay" id="checkin-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title"><i data-lucide="scan-face"></i> ลงชื่อเข้าใช้ยิมสมาชิกเดิม</h3>
+        <button class="close-modal-btn" id="close-checkin-modal" aria-label="ปิดหน้าต่าง">&times;</button>
+      </div>
+      <form id="checkin-submit-form" onsubmit="event.preventDefault();">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="checkin-member-id">รหัสสมาชิก หรือ เบอร์โทรศัพท์</label>
+            <input type="text" id="checkin-member-id" class="form-input" placeholder="เช่น GM-001 หรือ 0812345678" required autocomplete="off">
+          </div>
+          <div class="sound-toggle-wrapper" style="margin-top: 12px;">
+            <input type="checkbox" id="sound-checkbox" checked>
+            <label for="sound-checkbox">เปิดเสียงแจ้งเตือนสถานะเช็กอินสำเร็จ/ระงับ</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" style="width: auto;" id="cancel-checkin-modal">ยกเลิก</button>
+          <button type="submit" class="primary-btn checkin-btn" style="width: auto; height: 100%;">
+            <i data-lucide="log-in"></i>
+            <span>ยืนยันเช็กอินเข้าใช้ยิม</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 1.2: Daily Pass Modal -->
+  <div class="modal-overlay" id="daily-pass-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: var(--accent-gold);"><i data-lucide="ticket"></i> ขายตั๋วรายวันและเช็กอินทันที</h3>
+        <button class="close-modal-btn" id="close-daily-pass-modal" aria-label="ปิดหน้าต่าง">&times;</button>
+      </div>
+      <form id="quick-daily-pass-form" onsubmit="event.preventDefault();">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="daily-pass-name">ชื่อลูกค้า (เว้นว่างได้)</label>
+            <input type="text" id="daily-pass-name" class="form-input" placeholder="ลูกค้า Walk-in" autocomplete="off">
+          </div>
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label for="daily-pass-price">ค่าบริการพิเศษ (บาท)</label>
+              <input type="number" id="daily-pass-price" class="form-input" value="150" min="0">
+            </div>
+            <div class="form-group">
+              <label for="daily-pass-payment">การชำระเงิน</label>
+              <select id="daily-pass-payment" class="form-select">
+                <option value="เงินสด">เงินสด</option>
+                <option value="โอนผ่านธนาคาร">โอนเงิน (QR)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" style="width: auto;" id="cancel-daily-pass-modal">ยกเลิก</button>
+          <button type="submit" class="gold-btn" style="width: auto; height: 100%;">
+            <i data-lucide="zap"></i>
+            <span>รับเงินและเช็กอินทันที</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal 1: Add / Edit Member -->
   <div class="modal-overlay" id="member-modal">
