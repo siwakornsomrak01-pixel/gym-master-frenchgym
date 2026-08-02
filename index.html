@@ -14,7 +14,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-D7e4XvmP.js"></script>
+  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-X7TGWRXq.js"></script>
   <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-D78eD5lu.css">
 </head>
 <body>
@@ -62,14 +62,14 @@
           </li>
           <li class="nav-item" id="nav-item-billing">
             <a class="nav-link" data-view="billing">
-              <i data-lucide="credit-card"></i>
-              <span>แพ็กเกจและการเงิน</span>
+              <i data-lucide="settings"></i>
+              <span>ตั้งค่าแพ็กเกจ</span>
             </a>
           </li>
-          <li class="nav-item" id="nav-item-audit">
-            <a class="nav-link" data-view="audit">
-              <i data-lucide="shield-alert"></i>
-              <span>ประวัติออดิต</span>
+          <li class="nav-item" id="nav-item-finance">
+            <a class="nav-link" data-view="finance">
+              <i data-lucide="wallet"></i>
+              <span>สรุปยอดและการเงิน</span>
             </a>
           </li>
         </ul>
@@ -311,117 +311,7 @@
             </div>
           </div>
 
-          <!-- Billing Transaction logs -->
-          <div class="panel-card" style="margin-top: 32px;">
-            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <h3 class="panel-title"><i data-lucide="receipt"></i>ประวัติการรับชำระเงินทั้งหมด</h3>
-              <button type="button" class="secondary-btn" id="export-billing-csv" style="padding: 6px 12px; font-size: 12px; height: auto; width: auto; display: flex; align-items: center; gap: 4px;">
-                <i data-lucide="download" style="width: 12px; height: 12px;"></i>ส่งออก CSV
-              </button>
-            </div>
-            <div class="table-container">
-              <table class="custom-table">
-                <thead>
-                  <tr>
-                    <th>เลขที่ใบเสร็จ</th>
-                    <th>สมาชิก</th>
-                    <th>แพ็กเกจ</th>
-                    <th>จำนวนเงิน</th>
-                    <th>ช่องทางการชำระ</th>
-                    <th>วันที่รับเงิน</th>
-                  </tr>
-                </thead>
-                <tbody id="billing-table-body">
-                  <!-- Dynamically populated payment transactions -->
-                </tbody>
-              </table>
-            </div>
-          </div>
 
-          <!-- Beverage Sales Transaction logs -->
-          <div class="panel-card" style="margin-top: 32px;">
-            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <h3 class="panel-title"><i data-lucide="receipt"></i>ประวัติการขายเครื่องดื่มทั้งหมด</h3>
-              <button type="button" class="secondary-btn" id="export-shop-csv" style="padding: 6px 12px; font-size: 12px; height: auto; width: auto; display: flex; align-items: center; gap: 4px;">
-                <i data-lucide="download" style="width: 12px; height: 12px;"></i>ส่งออก CSV
-              </button>
-            </div>
-            <div class="table-container">
-              <table class="custom-table">
-                <thead>
-                  <tr>
-                    <th>เลขที่ใบเสร็จ</th>
-                    <th>รายการสินค้า</th>
-                    <th>ยอดรวม</th>
-                    <th>ชำระโดย</th>
-                    <th>วันที่บันทึกยอด</th>
-                  </tr>
-                </thead>
-                <tbody id="shop-sales-table-body">
-                  <!-- Dynamically populated beverage sales transactions -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Daily summary close ledger section (Owner view) -->
-          <div class="panel-card" style="margin-top: 32px;" id="owner-daily-report-section">
-            <div class="panel-header" style="flex-wrap: wrap; gap: 16px;">
-              <h3 class="panel-title" style="color: var(--accent-gold);"><i data-lucide="book-open"></i>รายงานการปิดยอดบัญชีรายวัน</h3>
-              <div class="date-picker-row">
-                <label for="archive-date-picker" style="font-size: 13px; color: var(--text-secondary);">เลือกวันที่ดูสรุปยอด:</label>
-                <input type="date" id="archive-date-picker" class="form-input" style="width: auto; padding: 6px 12px; font-size: 13px;">
-                <button class="primary-btn" id="close-today-ledger-btn" style="padding: 8px 16px; font-size: 13px;">
-                  <i data-lucide="lock"></i>ปิดยอดบัญชีวันนี้
-                </button>
-              </div>
-            </div>
-
-            <!-- Selected Date Daily report details -->
-            <div class="daily-summary-display-grid">
-              <div class="daily-summary-kpi-subcard">
-                <span class="daily-summary-kpi-label">รายรับค่าสมาชิก</span>
-                <span class="daily-summary-kpi-val" id="daily-sum-members">฿0</span>
-              </div>
-              <div class="daily-summary-kpi-subcard">
-                <span class="daily-summary-kpi-label">รายรับขายน้ำ/ของชำ</span>
-                <span class="daily-summary-kpi-val" id="daily-sum-beverages">฿0</span>
-              </div>
-              <div class="daily-summary-kpi-subcard">
-                <span class="daily-summary-kpi-label">ตั๋วรายวัน (Daily Passes)</span>
-                <span class="daily-summary-kpi-val" id="daily-sum-passes">0 ใบ</span>
-              </div>
-              <div class="daily-summary-kpi-subcard">
-                <span class="daily-summary-kpi-label">จำนวนผู้ใช้บริการวันนี้</span>
-                <span class="daily-summary-kpi-val" id="daily-sum-users">0 คน</span>
-              </div>
-              <div class="daily-summary-kpi-subcard" style="border-color: var(--accent-gold-glow); background-color: rgba(255, 215, 0, 0.03);">
-                <span class="daily-summary-kpi-label" style="color: var(--accent-gold);">รายรับรวมปิดยอด</span>
-                <span class="daily-summary-kpi-val total-revenue" id="daily-sum-total">฿0</span>
-              </div>
-            </div>
-
-            <!-- List of closed summaries -->
-            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;"><i data-lucide="folder-archive" style="display: inline; vertical-align: middle; margin-right: 6px;"></i>ประวัติสมุดปิดยอดบัญชีรายวันย้อนหลัง</h4>
-            <div class="table-container">
-              <table class="custom-table">
-                <thead>
-                  <tr>
-                    <th>วันที่ปิดยอด</th>
-                    <th>ยอดค่าสมาชิก</th>
-                    <th>ยอดขายเครื่องดื่ม</th>
-                    <th>จำนวนตั๋วรายวัน</th>
-                    <th>จำนวนคนเข้ายิม</th>
-                    <th>ยอดรายรับปิดวัน</th>
-                    <th>สถานะ</th>
-                  </tr>
-                </thead>
-                <tbody id="daily-archives-table-body">
-                  <!-- Populated closed ledger history -->
-                </tbody>
-              </table>
-            </div>
-          </div>
 
           <!-- QR Code Generator Card (Owner view) -->
           <div class="panel-card" style="margin-top: 32px;" id="owner-qr-portal-section">
@@ -540,81 +430,130 @@
           </div>
         </section>
         <!-- 7. AUDIT LOGS VIEW -->
-        <section id="audit-view" class="view-panel">
-          <div class="panel-card">
-            <div class="panel-header" style="flex-wrap: wrap; gap: 16px;">
-              <div class="panel-title-area">
-                <h2>บันทึกประวัติความปลอดภัยระบบ (Audit Logs)</h2>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">ประวัติการทำงานของพนักงานทั้งหมดเพื่อป้องกันทุจริตและการแก้ไขข้อมูลหน้าร้าน</p>
-              </div>
-              <div class="flex-actions" style="gap: 12px; display: flex; flex-wrap: wrap; align-items: center;">
-                <input type="text" id="audit-search-input" placeholder="ค้นหาพนักงาน/รายละเอียด..." class="form-input" style="width: 240px; height: 38px;" aria-label="ค้นหาข้อมูลประวัติความปลอดภัย">
-                <select id="audit-filter-action" class="form-select" style="width: 180px; height: 38px;" aria-label="เลือกกรองกิจกรรมความปลอดภัย">
-                  <option value="">ทุกกิจกรรม</option>
-                  <option value="เข้าสู่ระบบ">เข้าสู่ระบบ / ออกจากระบบ</option>
-                  <option value="เช็กอินเข้ายิม">เช็กอินเข้ายิม</option>
-                  <option value="สมัครสมาชิก">สมัครสมาชิก</option>
-                  <option value="ต่ออายุสมาชิก">ต่ออายุสมาชิก</option>
-                  <option value="ขายเครื่องดื่ม">ขายเครื่องดื่ม</option>
-                  <option value="ออกตั๋วรายวัน">ออกตั๋วรายวัน</option>
-                  <option value="แก้ไขราคาแผนบริการ">แก้ไขราคาแผนบริการ</option>
-                  <option value="แก้ไขเครื่องดื่ม">การจัดการสินค้า (เพิ่ม/แก้)</option>
-                  <option value="ลบเครื่องดื่ม">ลบเครื่องดื่ม</option>
-                  <option value="ลบสมาชิก">ลบสมาชิก</option>
-                  <option value="ปิดยอดบัญชี">ปิดยอดบัญชี</option>
-                </select>
-                <button type="button" class="secondary-btn" id="export-audit-csv" style="height: 38px; padding: 0 14px; display: flex; align-items: center; gap: 4px;">
-                  <i data-lucide="download" style="width: 14px; height: 14px;"></i>ส่งออก CSV
+        <!-- 7. FINANCE VIEW (สรุปยอดและการเงิน) -->
+        <section id="finance-view" class="view-panel">
+          <div class="panel-card" style="padding: 24px;">
+            <div class="panel-header" style="flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center;">
+              <h3 class="panel-title" style="color: var(--accent-gold); margin: 0;"><i data-lucide="wallet"></i>สรุปยอดและการเงิน</h3>
+              
+              <!-- Filters Row -->
+              <div class="flex-actions" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                <div class="date-picker-row" style="display: flex; align-items: center; gap: 8px;">
+                  <label for="archive-date-picker" style="font-size: 13px; color: var(--text-secondary);">วันที่ดูสรุปยอด:</label>
+                  <input type="date" id="archive-date-picker" class="form-input" style="width: auto; padding: 6px 12px; font-size: 13px;">
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label for="finance-operator-filter" style="font-size: 13px; color: var(--text-secondary);">ผู้ปฏิบัติงาน:</label>
+                  <select id="finance-operator-filter" class="form-select" style="width: auto; padding: 6px 12px; font-size: 13px; height: 34px;">
+                    <option value="all">ทั้งหมด (All)</option>
+                  </select>
+                </div>
+                
+                <button class="primary-btn" id="close-today-ledger-btn" style="padding: 8px 16px; font-size: 13px; width: auto; height: 34px;">
+                  <i data-lucide="lock"></i>ปิดยอดบัญชีวันนี้
                 </button>
               </div>
             </div>
 
-            <!-- Diagnostic Info Bar -->
-            <div id="audit-diagnostic-bar" style="background-color: rgba(255, 95, 31, 0.05); border: 1px dashed var(--accent-orange); border-radius: 8px; padding: 12px 16px; margin: 15px 0; font-size: 13px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-weight: 600; color: var(--accent-orange);">🔍 ตรวจวิเคราะห์ระบบเชื่อมต่อคลาวด์:</span>
-                <span id="diagnostic-conn-status" style="color: var(--text-primary);">กำลังตรวจจับ...</span>
+            <!-- Selected Date Daily report details -->
+            <div class="daily-summary-display-grid" style="margin-top: 20px;">
+              <div class="daily-summary-kpi-subcard">
+                <span class="daily-summary-kpi-label">รายรับค่าสมาชิก</span>
+                <span class="daily-summary-kpi-val" id="daily-sum-members">฿0</span>
               </div>
-              <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                <span>ข้อมูลในเครื่อง: <strong id="diagnostic-local-count" class="font-eng" style="color: var(--accent-gold);">0</strong> รายการ</span>
-                <span>ข้อมูลบนคลาวด์: <strong id="diagnostic-cloud-count" class="font-eng" style="color: var(--accent-orange);">0</strong> รายการ</span>
+              <div class="daily-summary-kpi-subcard">
+                <span class="daily-summary-kpi-label">รายรับขายน้ำ/ของชำ</span>
+                <span class="daily-summary-kpi-val" id="daily-sum-beverages">฿0</span>
               </div>
-              <button type="button" id="diagnostic-sync-btn" class="primary-btn" style="padding: 4px 10px; font-size: 12px; height: auto; width: auto; background-color: var(--accent-orange); border-color: var(--accent-orange);">
-                <i data-lucide="refresh-cw" style="width: 12px; height: 12px; margin-right: 4px; display: inline-block; vertical-align: middle;"></i>ซิงก์ด่วน
-              </button>
+              <div class="daily-summary-kpi-subcard">
+                <span class="daily-summary-kpi-label">ตั๋วรายวัน (Daily Passes)</span>
+                <span class="daily-summary-kpi-val" id="daily-sum-passes">0 ใบ</span>
+              </div>
+              <div class="daily-summary-kpi-subcard">
+                <span class="daily-summary-kpi-label">จำนวนผู้ใช้บริการวันนี้</span>
+                <span class="daily-summary-kpi-val" id="daily-sum-users">0 คน</span>
+              </div>
+              <div class="daily-summary-kpi-subcard" style="border-color: var(--accent-gold-glow); background-color: rgba(255, 215, 0, 0.03);">
+                <span class="daily-summary-kpi-label" style="color: var(--accent-gold);">รายรับรวมปิดยอด</span>
+                <span class="daily-summary-kpi-val total-revenue" id="daily-sum-total">฿0</span>
+              </div>
             </div>
 
-            <div class="table-container" style="margin-top: 10px;">
+            <!-- List of closed summaries -->
+            <h4 style="font-size: 14px; font-weight: 600; margin-top: 32px; margin-bottom: 12px;"><i data-lucide="folder-archive" style="display: inline; vertical-align: middle; margin-right: 6px;"></i>ประวัติสมุดปิดยอดบัญชีรายวันย้อนหลัง</h4>
+            <div class="table-container">
               <table class="custom-table">
                 <thead>
                   <tr>
-                    <th style="width: 100px;">รหัสบันทึก</th>
-                    <th style="width: 160px;">วัน-เวลา</th>
-                    <th style="width: 180px;">ผู้ปฏิบัติงาน</th>
-                    <th style="width: 180px;">กิจกรรม</th>
-                    <th>รายละเอียดเชิงลึก</th>
+                    <th>วันที่ปิดยอด</th>
+                    <th>ยอดค่าสมาชิก</th>
+                    <th>ยอดขายเครื่องดื่ม</th>
+                    <th>จำนวนตั๋วรายวัน</th>
+                    <th>จำนวนคนเข้ายิม</th>
+                    <th>ยอดรายรับปิดวัน</th>
+                    <th>สถานะ</th>
                   </tr>
                 </thead>
-                <tbody id="audit-table-body">
-                  <!-- แทรกข้อมูล Audit Logs จาก JS -->
+                <tbody id="daily-archives-table-body">
+                  <!-- Populated closed ledger history -->
                 </tbody>
               </table>
             </div>
+          </div>
 
-            <!-- Audit Logs Pagination Controls -->
-            <div id="audit-pagination" class="pagination-controls-wrapper" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-              <div style="font-size: 13px; color: var(--text-secondary);">
-                แสดงรายการที่ <span id="audit-page-start">0</span> ถึง <span id="audit-page-end">0</span> จากทั้งหมด <span id="audit-total-count">0</span> รายการ
-              </div>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <button type="button" class="secondary-btn" id="btn-audit-prev-page" style="width: auto; height: 32px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
-                  <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i>ก่อนหน้า
-                </button>
-                <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">หน้า <span id="audit-current-page-num">1</span></span>
-                <button type="button" class="secondary-btn" id="btn-audit-next-page" style="width: auto; height: 32px; padding: 0 10px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
-                  ถัดไป<i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
-                </button>
-              </div>
+          <!-- Billing Transaction logs -->
+          <div class="panel-card" style="margin-top: 32px;">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <h3 class="panel-title"><i data-lucide="receipt"></i>ประวัติการรับชำระเงิน (คัดกรองตามตัวเลือกด้านบน)</h3>
+              <button type="button" class="secondary-btn" id="export-billing-csv" style="padding: 6px 12px; font-size: 12px; height: auto; width: auto; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="download" style="width: 12px; height: 12px;"></i>ส่งออก CSV
+              </button>
+            </div>
+            <div class="table-container">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>เลขที่ใบเสร็จ</th>
+                    <th>สมาชิก</th>
+                    <th>แพ็กเกจ</th>
+                    <th>จำนวนเงิน</th>
+                    <th>ช่องทางการชำระ</th>
+                    <th>ผู้ปฏิบัติงาน</th>
+                    <th>วันที่รับเงิน</th>
+                  </tr>
+                </thead>
+                <tbody id="billing-table-body">
+                  <!-- Dynamically populated payment transactions -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Beverage Sales Transaction logs -->
+          <div class="panel-card" style="margin-top: 32px;">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <h3 class="panel-title"><i data-lucide="receipt"></i>ประวัติการขายเครื่องดื่ม (คัดกรองตามตัวเลือกด้านบน)</h3>
+              <button type="button" class="secondary-btn" id="export-shop-csv" style="padding: 6px 12px; font-size: 12px; height: auto; width: auto; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="download" style="width: 12px; height: 12px;"></i>ส่งออก CSV
+              </button>
+            </div>
+            <div class="table-container">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>เลขที่ใบเสร็จ</th>
+                    <th>รายการสินค้า</th>
+                    <th>ยอดรวม</th>
+                    <th>ชำระโดย</th>
+                    <th>ผู้ปฏิบัติงาน</th>
+                    <th>วันที่บันทึกยอด</th>
+                  </tr>
+                </thead>
+                <tbody id="shop-sales-table-body">
+                  <!-- Dynamically populated beverage sales transactions -->
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
