@@ -14,7 +14,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-CNV1_9LY.js"></script>
+  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-BastL6Cg.js"></script>
   <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-DLy9eyHG.css">
 </head>
 <body>
@@ -70,6 +70,12 @@
             <a class="nav-link" data-view="finance">
               <i data-lucide="wallet"></i>
               <span>สรุปยอดและการเงิน</span>
+            </a>
+          </li>
+          <li class="nav-item" id="nav-item-audit">
+            <a class="nav-link" data-view="audit">
+              <i data-lucide="file-text"></i>
+              <span>ประวัติออดิทระบบ</span>
             </a>
           </li>
         </ul>
@@ -663,6 +669,42 @@
               </div>
 
             </div>
+          </div>
+        </section>
+
+        <!-- 8. AUDIT LOGS VIEW -->
+        <section id="audit-view" class="view-panel">
+          <div class="panel-header" style="flex-wrap: wrap; gap: 16px;">
+            <div>
+              <h3 class="panel-title" style="color: var(--text-primary);"><i data-lucide="file-text" style="color: var(--accent-orange);"></i> ประวัติการออดิทระบบ (System Audit Logs)</h3>
+              <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">บันทึกประวัติการเข้าใช้งาน การทำรายการ และกิจกรรมทั้งหมดของระบบยิมย้อนหลัง</p>
+            </div>
+            
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="audit-search-input" class="form-input" placeholder="ค้นหากิจกรรม หรือผู้ทำรายการ..." style="width: 220px; font-size: 13px;">
+              <select id="audit-role-filter" class="form-select" style="width: 150px; font-size: 13px;">
+                <option value="all">ทุกบทบาทผู้ใช้</option>
+                <option value="owner">เจ้าของยิม (Owner)</option>
+                <option value="staff">พนักงาน (Staff)</option>
+                <option value="system">ระบบอัตโนมัติ</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-container" style="margin-top: 20px;">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th style="width: 170px;">เวลาทำรายการ</th>
+                  <th style="width: 150px;">ผู้ทำรายการ</th>
+                  <th style="width: 180px;">กิจกรรม</th>
+                  <th>รายละเอียดเพิ่มเติม</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body">
+                <!-- Dynamically populated audit logs -->
+              </tbody>
+            </table>
           </div>
         </section>
 
