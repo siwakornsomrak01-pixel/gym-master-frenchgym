@@ -14,7 +14,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-C8oEZRn7.js"></script>
+  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-CNV1_9LY.js"></script>
   <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-DLy9eyHG.css">
 </head>
 <body>
@@ -715,9 +715,13 @@
             <label for="daily-pass-name">ชื่อลูกค้า (เว้นว่างได้)</label>
             <input type="text" id="daily-pass-name" class="form-input" placeholder="ลูกค้า Walk-in" autocomplete="off">
           </div>
+          <div class="form-group">
+            <label for="daily-pass-phone">เบอร์โทรศัพท์ (สำหรับใช้ยืนยันการเข้ายิมซ้ำในวันนี้)</label>
+            <input type="tel" id="daily-pass-phone" class="form-input" placeholder="08XXXXXXXX (เว้นว่างได้)" autocomplete="off">
+          </div>
           <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px;">
             <div class="form-group">
-              <label for="daily-pass-price">ค่าบริการพิเศษ (บาท)</label>
+              <label for="daily-pass-price">ค่าบริการ (บาท)</label>
               <input type="number" id="daily-pass-price" class="form-input" value="150" min="0">
             </div>
             <div class="form-group">
@@ -726,6 +730,31 @@
                 <option value="เงินสด">เงินสด</option>
                 <option value="โอนผ่านธนาคาร">โอนเงิน (QR)</option>
               </select>
+            </div>
+          </div>
+
+          <!-- Quick Camera Capture Component for Option 1 -->
+          <div class="form-group" style="margin-top: 12px;">
+            <label style="display: flex; align-items: center; gap: 6px;"><i data-lucide="camera" style="width: 16px; height: 16px; color: var(--accent-gold);"></i> ถ่ายรูปยืนยันตัวตนชั่วคราว (สำหรับใช้เปรียบเทียบหน้าเมื่อกลับมาเช็กอินอีกครั้งวันนี้)</label>
+            <div class="camera-box" style="background: #0d0d11; border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px; text-align: center; margin-top: 6px;">
+              <video id="daily-pass-video" style="width: 100%; max-height: 180px; border-radius: 6px; display: none; object-fit: cover; background: #000;" autoplay playsinline></video>
+              <canvas id="daily-pass-canvas" style="display: none;"></canvas>
+              <img id="daily-pass-photo-preview" src="" style="width: 100%; max-height: 180px; border-radius: 6px; display: none; object-fit: cover; border: 2px solid var(--accent-gold);">
+              <div id="camera-placeholder" style="padding: 15px; color: var(--text-muted); font-size: 13px;">
+                <i data-lucide="camera" style="width: 32px; height: 32px; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; opacity: 0.6;"></i>
+                <span>กดปุ่ม "เปิดกล้อง" เพื่อถ่ายภาพยืนยันตัวตนชั่วคราว</span>
+              </div>
+              <div style="display: flex; gap: 8px; justify-content: center; margin-top: 10px;">
+                <button type="button" class="secondary-btn" id="btn-start-camera" style="font-size: 12px; padding: 6px 12px; width: auto;">
+                  <i data-lucide="video" style="width: 14px; height: 14px;"></i> เปิดกล้อง
+                </button>
+                <button type="button" class="primary-btn" id="btn-take-photo" style="font-size: 12px; padding: 6px 12px; width: auto; display: none; background: var(--accent-gold); border-color: var(--accent-gold); color: #000;">
+                  <i data-lucide="camera" style="width: 14px; height: 14px;"></i> ถ่ายรูป
+                </button>
+                <button type="button" class="secondary-btn" id="btn-retake-photo" style="font-size: 12px; padding: 6px 12px; width: auto; display: none;">
+                  <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i> ถ่ายใหม่
+                </button>
+              </div>
             </div>
           </div>
         </div>
