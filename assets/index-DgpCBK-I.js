@@ -2278,8 +2278,8 @@ This typically indicates that your device does not have a healthy Internet conne
     `,t.appendChild(c)})}function zi(){const r=document.getElementById("checkin-result-panel");r&&(r.className="checkin-status-panel empty",r.innerHTML=`
       <div class="status-display">
         <div class="status-icon"><i data-lucide="info"></i></div>
-        <div class="status-message">กรุณาระบุรหัสสมาชิกเพื่อตรวจสอบ</div>
-        <p style="color: var(--text-secondary); font-size: 14px;">พิมพ์รหัสและกดปุ่มยืนยันเช็กอินด้านซ้ายเพื่อดูสิทธิ์</p>
+        <div class="status-message">ระบบพร้อมใช้งาน</div>
+        <p style="color: var(--text-secondary); font-size: 14px;">เลือกระบบด้านบนเพื่อดำเนินการ</p>
       </div>
     `,Gt())}function om(r){var c,l;r.preventDefault();const t=document.getElementById("checkin-member-id"),e=t.value.trim();if(!e)return;(c=document.getElementById("checkin-modal"))==null||c.classList.remove("active");const n=d1(e);n.success&&n.checkin&&(window._lastLocalCheckinId=n.checkin.id);const s=document.getElementById("checkin-result-panel");if(s.className="checkin-status-panel",n.success){const h=n.member,p=h.fullname.substring(0,2),m=Ut();m.setHours(0,0,0,0);const E=new Date(h.expiryDate);E.setHours(0,0,0,0);const S=Math.ceil((E-m)/(1e3*60*60*24));let x="อนุญาตให้เข้ายิมได้",L=`สมาชิกสถานะปกติ (เหลืออายุการใช้งานอีก ${S} วัน)`;n.status==="expired"?(x="ระงับสิทธิ์เข้าใช้งาน!",L="แพ็กเกจสมาชิกของคุณหมดอายุแล้ว กรุณาติดต่อต่ออายุที่เคาน์เตอร์",s.classList.add("expired")):n.status==="warning"?(x="ผ่าน (สิทธิ์ใกล้หมดอายุ)",L=`สมาชิกจะหมดอายุในอีก ${S} วันโปรดชำระค่าบริการล่วงหน้า`,s.classList.add("warning")):s.classList.add("active");let F="ปกติ";n.status==="expired"&&(F="หมดอายุ"),n.status==="warning"&&(F="ใกล้หมด"),s.innerHTML=`
       <div class="status-display" style="width: 100%;">
