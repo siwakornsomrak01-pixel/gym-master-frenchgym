@@ -14,7 +14,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-DmeyRQNb.js"></script>
+  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-wbRZhz0F.js"></script>
   <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-DLy9eyHG.css">
 </head>
 <body>
@@ -116,11 +116,32 @@
 
         <!-- 1. DASHBOARD VIEW -->
         <section id="dashboard-view" class="view-panel active">
+          <!-- Top Dashboard Filters Row -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 style="font-size: 20px; font-weight: 700; color: var(--text-primary);">แดชบอร์ดสรุปผลการดำเนินงาน</h2>
+              <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">สรุปยอดรายได้ สมาชิกใหม่ และวิเคราะห์ช่วงเวลาทราฟฟิกของผู้ใช้บริการ</p>
+            </div>
+            <!-- Global filters -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select id="db-time-filter" class="form-select" style="width: 140px; padding: 8px 12px; font-size: 13px;">
+                <option value="today">วันนี้</option>
+                <option value="week" selected>สัปดาห์นี้</option>
+                <option value="month">เดือนนี้</option>
+                <option value="year">ปีนี้</option>
+              </select>
+              <select id="db-beverage-filter" class="form-select" style="width: 175px; padding: 8px 12px; font-size: 13px;">
+                <option value="include">รวมสินค้าเครื่องดื่ม</option>
+                <option value="exclude">เฉพาะค่าสมาชิกฟิตเนส</option>
+              </select>
+            </div>
+          </div>
+
           <!-- KPI Cards Grid -->
           <div class="kpi-grid">
             <div class="kpi-card total-members">
               <div class="kpi-info">
-                <span class="kpi-title">สมาชิกทั้งหมด</span>
+                <span class="kpi-title">สมาชิกทั้งหมด (ไม่รวม Walk-in)</span>
                 <span class="kpi-value" id="kpi-total-members">0</span>
               </div>
               <div class="kpi-icon-wrapper">
@@ -160,31 +181,50 @@
           </div>
 
           <!-- Charts and Activity Grid -->
-          <div class="dashboard-grid">
-            <!-- Left Chart Card -->
+          <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr; margin-top: 24px; gap: 24px;">
+            <!-- Left Chart Card (Line chart for revenue trend) -->
             <div class="panel-card">
-              <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
-                <h3 class="panel-title"><i data-lucide="trending-up"></i>กราฟสรุปรายรับการเงิน</h3>
-                <div class="chart-filter-controls" id="chart-payment-filter">
-                  <button class="chart-filter-btn active" data-filter="all">ทั้งหมด</button>
-                  <button class="chart-filter-btn" data-filter="โอนผ่านธนาคาร">เงินโอน</button>
-                  <button class="chart-filter-btn" data-filter="เงินสด">เงินสด</button>
-                  <button class="chart-filter-btn" data-filter="บัตรเครดิต">เครดิตการ์ด</button>
-                </div>
+              <div class="panel-header">
+                <h3 class="panel-title"><i data-lucide="trending-up" style="color: var(--accent-orange);"></i>แนวโน้มรายรับการเงิน (Revenue Trends)</h3>
               </div>
-              <div class="chart-container">
+              <div class="chart-container" style="height: 320px;">
                 <canvas id="revenue-chart"></canvas>
               </div>
             </div>
             
-            <!-- Right Check-ins Card -->
+            <!-- Right Check-ins / Signups Card -->
             <div class="panel-card">
               <div class="panel-header">
-                <h3 class="panel-title"><i data-lucide="history"></i>ประวัติเข้ายิมล่าสุดวันนี้</h3>
+                <h3 class="panel-title"><i data-lucide="user-plus" style="color: var(--accent-gold);"></i>สมัครสมาชิกใหม่สะสม</h3>
               </div>
-              <div class="recent-checkins-list" id="dashboard-checkins-list">
-                <!-- Dynamically populated checkins -->
+              <div style="display: flex; flex-direction: column; gap: 16px; padding: 20px 10px;">
+                <div class="signup-stat-row" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                  <span style="color: var(--text-secondary); font-size: 14px;">สมัครสมาชิกใหม่วันนี้</span>
+                  <strong id="signup-today" style="color: #fff; font-size: 18px;">0</strong>
+                </div>
+                <div class="signup-stat-row" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                  <span style="color: var(--text-secondary); font-size: 14px;">สัปดาห์นี้</span>
+                  <strong id="signup-week" style="color: var(--accent-gold); font-size: 18px;">0</strong>
+                </div>
+                <div class="signup-stat-row" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                  <span style="color: var(--text-secondary); font-size: 14px;">เดือนนี้</span>
+                  <strong id="signup-month" style="color: var(--color-success); font-size: 18px;">0</strong>
+                </div>
+                <div class="signup-stat-row" style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: var(--text-secondary); font-size: 14px;">ปีนี้</span>
+                  <strong id="signup-year" style="color: #06B6D4; font-size: 18px;">0</strong>
+                </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Bottom Row: Peak Hours Chart -->
+          <div class="panel-card" style="margin-top: 24px;">
+            <div class="panel-header">
+              <h3 class="panel-title"><i data-lucide="activity" style="color: #06B6D4;"></i>วิเคราะห์ชั่วโมงการเข้าใช้บริการ (Peak Traffic Hours Analysis)</h3>
+            </div>
+            <div class="chart-container" style="height: 280px; margin-top: 16px;">
+              <canvas id="peak-hours-chart"></canvas>
             </div>
           </div>
         </section>
