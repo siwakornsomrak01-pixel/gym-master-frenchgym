@@ -2363,11 +2363,11 @@ This typically indicates that your device does not have a healthy Internet conne
               onclick="alert('📋 รายละเอียดสมาชิก: ${c.fullname}\\n📦 แพ็กเกจ: ${T}\\n🗓️ วันที่สมัคร: ${c.joinDate}\\n📆 วันหมดอายุ: ${c.expiryDate}\\n⏳ สถานะคงเหลือ: ${E}')">
           ${T} (${E})
         </span>
-      `}else p='<span style="color: var(--text-muted);">-</span>';let m="ไม่มีค่าใช้จ่าย";if(h){const pt=(ne()||[]).find(Et=>Et.id==="plan-daily");m=`฿${(pt?pt.price:150).toLocaleString()}`}const w=(We()||[]).find(W=>W.memberId===o.memberId&&W.date.startsWith(n));let R='<span style="color: var(--text-muted);">-</span>';if(w){let W=w.paymentMethod,pt="cash",ct="เงินสด";W.includes("โอน")?(pt="transfer",ct="โอน"):W.includes("บัตร")&&(pt="card",ct="บัตรเครดิต"),R=`<span class="pay-badge ${pt}">${ct}</span>`}else h&&(R='<span class="pay-badge cash">เงินสด</span>');const B=`<input type="text" class="traffic-remark-input" value="${o.remark||""}" placeholder="เพิ่มหมายเหตุ..." data-id="${o.id}">`,L=o.timestamp.split(" ")[1],Z=document.createElement("tr");Z.innerHTML=`
+      `}else p='<span style="color: var(--text-muted);">-</span>';const _=(We()||[]).find(W=>W.memberId===o.memberId&&W.date.startsWith(n));let w="ไม่มีค่าใช้จ่าย";if(h)if(_)w=`฿${_.amount.toLocaleString()}`;else{const pt=(ne()||[]).find(Et=>Et.id==="plan-daily");w=`฿${(pt?pt.price:150).toLocaleString()}`}let R='<span style="color: var(--text-muted);">-</span>';if(_){let W=_.paymentMethod,pt="cash",ct="เงินสด";W.includes("โอน")?(pt="transfer",ct="โอน"):W.includes("บัตร")&&(pt="card",ct="บัตรเครดิต"),R=`<span class="pay-badge ${pt}">${ct}</span>`}else h&&(R='<span class="pay-badge cash">เงินสด</span>');const B=`<input type="text" class="traffic-remark-input" value="${o.remark||""}" placeholder="เพิ่มหมายเหตุ..." data-id="${o.id}">`,L=o.timestamp.split(" ")[1],Z=document.createElement("tr");Z.innerHTML=`
       <td class="font-eng" style="font-weight: 600; color: var(--text-muted);">${l+1}</td>
       <td style="font-weight: 500;">${o.memberName}</td>
       <td>${p}</td>
-      <td style="font-weight: 600; color: ${h?"var(--accent-orange)":"var(--text-secondary)"};">${m}</td>
+      <td style="font-weight: 600; color: ${h?"var(--accent-orange)":"var(--text-secondary)"};">${w}</td>
       <td>${R}</td>
       <td class="font-eng" style="color: var(--text-secondary);">${L} น.</td>
       <td style="padding: 4px 8px;">${B}</td>
