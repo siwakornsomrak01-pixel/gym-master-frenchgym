@@ -14,7 +14,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- LINE LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-DySXdkXk.js"></script>
+  <script type="module" crossorigin src="/gym-master-frenchgym/assets/index-CA5W-WAx.js"></script>
   <link rel="stylesheet" crossorigin href="/gym-master-frenchgym/assets/index-DLy9eyHG.css">
 </head>
 <body>
@@ -681,18 +681,15 @@
             </div>
             
             <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-              <input type="text" id="audit-search-input" class="form-input" placeholder="🔍 ค้นหารายละเอียด..." style="width: 180px; font-size: 13px;">
-              <select id="audit-action-filter" class="form-select" style="width: 170px; font-size: 13px;">
+              <input type="text" id="audit-search-input" class="form-input" placeholder="🔍 ค้นหารายละเอียด..." style="width: 220px; font-size: 13px;">
+              <select id="audit-action-filter" class="form-select" style="width: 180px; font-size: 13px;">
                 <option value="all">⚡ ทุกประเภทกิจกรรม</option>
               </select>
-              <select id="audit-role-filter" class="form-select" style="width: 150px; font-size: 13px;">
-                <option value="all">👥 ทุกบทบาทผู้ใช้</option>
-                <option value="owner">เจ้าของยิม (Owner)</option>
-                <option value="staff">พนักงาน (Staff)</option>
-                <option value="system">ระบบอัตโนมัติ</option>
-              </select>
-              <select id="audit-user-filter" class="form-select" style="width: 160px; font-size: 13px;">
+              <select id="audit-user-filter" class="form-select" style="width: 240px; font-size: 13px;">
                 <option value="all">👤 ทุกผู้ทำรายการ</option>
+                <option value="role:owner">👑 เจ้าของยิมทั้งหมด (Owners)</option>
+                <option value="role:staff">💼 พนักงานทั้งหมด (Staff)</option>
+                <option value="role:system">🤖 ระบบอัตโนมัติ (System)</option>
               </select>
             </div>
           </div>
